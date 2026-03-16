@@ -25,13 +25,20 @@
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
 
+  /* Sidebar tokens */
+  --sidebar-bg: #0f172a;
+  --sidebar-border: rgba(255,255,255,0.07);
+  --sidebar-text: #f1f5f9;
+  --sidebar-text-muted: #94a3b8;
+  --sidebar-hover: rgba(255,255,255,0.07);
+
   --sidebar-width: 220px;
   --header-height: 60px;
   --radius: 10px;
   --radius-sm: 6px;
   --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.14);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.16);
 
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
@@ -204,10 +211,12 @@ tbody tr:last-child td { border-bottom: none; }
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   width: 100%;
-  max-width: 440px;
+  max-width: min(440px, calc(100vw - 32px));
   animation: slideUp 0.2s;
   overflow: hidden;
 }
+.modal-lg { max-width: min(600px, calc(100vw - 32px)); }
+
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 20px;
@@ -231,7 +240,7 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ── Empty state ── */
 .empty-state {
-  padding: 48px 20px;
+  padding: 40px 20px;
   text-align: center;
   color: var(--text-secondary);
 }
@@ -282,7 +291,7 @@ a { color: inherit; text-decoration: none; }
   /* Single-column form rows */
   .form-row {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 8px;
   }
 
   /* ── Card-style table on mobile ── */
@@ -332,11 +341,11 @@ a { color: inherit; text-decoration: none; }
     min-width: 72px;
   }
 
-  /* Actions cell — no label, buttons right-aligned */
-  tbody td[data-label="Actions"]::before {
+  /* Actions cell (last column) — no label, buttons right-aligned */
+  tbody td:last-child::before {
     display: none;
   }
-  tbody td[data-label="Actions"] {
+  tbody td:last-child {
     justify-content: flex-end;
   }
 
@@ -357,6 +366,20 @@ a { color: inherit; text-decoration: none; }
     justify-content: center;
     height: 40px;
   }
+}
+
+/* ── Ultra-small phones (≤360px) ── */
+@media (max-width: 360px) {
+  .modal-header { padding: 14px 14px; }
+  .modal-body { padding: 14px; }
+  .modal-footer { padding: 12px 14px; }
+
+  .empty-state { padding: 28px 12px; }
+
+  .btn-sm { height: 32px; padding: 0 10px; font-size: 12px; }
+  button { font-size: 12px; }
+
+  .stat-info span { font-size: 18px; }
 }
 
 /* ── Sonner toasts ── */

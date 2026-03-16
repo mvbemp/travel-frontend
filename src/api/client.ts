@@ -7,6 +7,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Accept-Language': localStorage.getItem('lang') ?? 'uz',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },

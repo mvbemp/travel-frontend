@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,12 +10,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
+  const { setToken } = useAuth();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const passwordValid = password.length >= 6;
   const isFormValid = emailValid && passwordValid;
-  const { setToken } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -24,7 +26,7 @@ export default function LoginPage() {
       setToken(data.access_token ?? data.token ?? data.message);
       navigate('/users');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Login failed');
+      toast.error(err instanceof Error ? err.message : t('login.failed'));
     } finally {
       setLoading(false);
     }
@@ -35,39 +37,39 @@ export default function LoginPage() {
       <div className="login-card">
         <div className="login-card-header">
           <div className="login-card-logo">✈️</div>
-          <h1>Travel</h1>
-          <p>Sign in to your account</p>
+          <h1>{t('login.title')}</h1>
+          <p>{t('login.subtitle')}</p>
         </div>
         <form className="login-card-body" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email address</label>
+            <label>{t('login.emailLabel')}</label>
             <input
               type="email"
-              placeholder="email"
+              placeholder={t('login.emailPlaceholder')}
               value={email}
               onChange={e => setEmail(e.target.value)}
               onBlur={() => setTouched(t => ({ ...t, email: true }))}
               autoFocus
             />
             {touched.email && !emailValid && (
-              <span className="field-error">Enter a valid email address</span>
+              <span className="field-error">{t('login.emailError')}</span>
             )}
           </div>
           <div className="form-group">
-            <label>Password</label>
+            <label>{t('login.passwordLabel')}</label>
             <input
               type="password"
-              placeholder="password"
+              placeholder={t('login.passwordPlaceholder')}
               value={password}
               onChange={e => setPassword(e.target.value)}
-              onBlur={() => setTouched(t => ({ ...t, password: true }))}
+              onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
             />
             {touched.password && !passwordValid && (
-              <span className="field-error">Password must be at least 6 characters</span>
+              <span className="field-error">{t('login.passwordError')}</span>
             )}
           </div>
           <button type="submit" className="btn-primary login-submit" disabled={loading || !isFormValid}>
-            {loading ? 'Signing in…' : 'Sign In →'}
+            {loading ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
       </div>

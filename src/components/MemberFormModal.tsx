@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AddMemberDto, UpdateMemberDto } from '../api/groups';
 
 function formatPassport(raw: string): string {
@@ -34,6 +35,7 @@ export default function MemberFormModal({
   onChange,
   onClose,
 }: MemberFormModalProps) {
+  const { t } = useTranslation();
   const set = (patch: Partial<MemberForm>) => onChange({ ...form, ...patch });
 
   return (
@@ -47,9 +49,9 @@ export default function MemberFormModal({
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group">
-                <label>Full Name *</label>
+                <label>{t('member.fullName')}</label>
                 <input
-                  placeholder="Ali Karimov"
+                  placeholder={t('member.fullNamePlaceholder')}
                   value={form.name}
                   onChange={e => set({ name: e.target.value })}
                   required
@@ -57,9 +59,9 @@ export default function MemberFormModal({
                 />
               </div>
               <div className="form-group">
-                <label>Passport No.</label>
+                <label>{t('member.passportNo')}</label>
                 <input
-                  placeholder="AA1234567"
+                  placeholder={t('member.passportPlaceholder')}
                   value={form.passport ?? ''}
                   onChange={e => set({ passport: formatPassport(e.target.value) })}
                 />
@@ -67,19 +69,19 @@ export default function MemberFormModal({
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Passport Type</label>
+                <label>{t('member.passportType')}</label>
                 <select
                   value={form.passport_type ?? ''}
                   onChange={e => set({ passport_type: (e.target.value as AddMemberDto['passport_type']) || undefined })}
                 >
-                  <option value="">— None —</option>
-                  <option value="green_passport">Green Passport</option>
-                  <option value="red_passport">Red Passport</option>
-                  <option value="id_card">ID Card</option>
+                  <option value="">{t('member.passportNone')}</option>
+                  <option value="green_passport">{t('member.passportGreen')}</option>
+                  <option value="red_passport">{t('member.passportRed')}</option>
+                  <option value="id_card">{t('member.passportId')}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Payment ($)</label>
+                <label>{t('member.payment')}</label>
                 <input
                   type="number"
                   min="0"
@@ -91,9 +93,9 @@ export default function MemberFormModal({
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="button" className="btn-secondary" onClick={onClose}>{t('member.cancel')}</button>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Saving…' : submitLabel}
+              {loading ? t('member.saving') : submitLabel}
             </button>
           </div>
         </form>

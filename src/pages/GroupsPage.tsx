@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import {
   getGroups, createGroup, deleteGroup, finishGroup, addMember, updateMember, deleteMember,
   type CreateGroupDto,
@@ -12,17 +13,18 @@ import MemberFormModal, { type MemberForm } from '../components/MemberFormModal'
 const emptyGroupForm: CreateGroupDto = { name: '', description: '', date: '' };
 const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, payment: undefined };
 
-const PASSPORT_LABELS: Record<string, string> = {
-  green_passport: 'Green Passport',
-  red_passport: 'Red Passport',
-  id_card: 'ID Card',
-};
-
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
 export default function GroupsPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { t } = useTranslation();
+
+  const PASSPORT_LABELS: Record<string, string> = {
+    green_passport: t('groups.passportGreen'),
+    red_passport: t('groups.passportRed'),
+    id_card: t('groups.passportId'),
+  };
 
   const [groups, setGroups] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -59,7 +61,7 @@ export default function GroupsPage() {
       setPage(res.page ?? p);
       setLastPage(res.lastPage ?? 1);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load groups');
+      toast.error(err instanceof Error ? err.message : t('groups.failedLoad'));
     } finally {
       setFetching(false);
     }
@@ -76,9 +78,9 @@ export default function GroupsPage() {
       setShowModal(false);
       await load(1, perPage);
       setPage(1);
-      toast.success('Group created successfully');
+      toast.success(t('groups.created'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create group');
+      toast.error(err instanceof Error ? err.message : t('groups.failedCreate'));
     } finally {
       setLoading(false);
     }
@@ -89,9 +91,9 @@ export default function GroupsPage() {
       await deleteGroup(id);
       setGroups(prev => prev.filter(g => g.id !== id));
       setTotal(prev => prev - 1);
-      toast.success('Group deleted');
+      toast.success(t('groups.deleted'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete group');
+      toast.error(err instanceof Error ? err.message : t('groups.failedDelete'));
     } finally {
       setConfirmDelete(null);
     }
@@ -102,9 +104,9 @@ export default function GroupsPage() {
       await finishGroup(id);
       setGroups(prev => prev.map(g => g.id === id ? { ...g, is_finished: true } : g));
       if (membersGroup?.id === id) setMembersGroup((prev: any) => ({ ...prev, is_finished: true }));
-      toast.success('Group marked as finished');
+      toast.success(t('groups.markedFinished'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to finish group');
+      toast.error(err instanceof Error ? err.message : t('groups.failedFinish'));
     } finally {
       setConfirmFinish(null);
     }
@@ -125,9 +127,9 @@ export default function GroupsPage() {
       setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
       setMemberForm(emptyMemberForm);
       setShowAddMember(false);
-      toast.success('Member added');
+      toast.success(t('groups.memberAdded'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to add member');
+      toast.error(err instanceof Error ? err.message : t('groups.failedAddMember'));
     } finally {
       setAddingMember(false);
     }
@@ -152,9 +154,9 @@ export default function GroupsPage() {
       setMembersGroup(updatedGroup);
       setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
       setEditingMember(null);
-      toast.success('Member updated');
+      toast.success(t('groups.memberUpdated'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update member');
+      toast.error(err instanceof Error ? err.message : t('groups.failedUpdateMember'));
     } finally {
       setSavingMember(false);
     }
@@ -167,12 +169,17 @@ export default function GroupsPage() {
       const updatedGroup = { ...membersGroup, groupMember: membersGroup.groupMember.filter((m: any) => m.id !== confirmDeleteMember.id) };
       setMembersGroup(updatedGroup);
       setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
-      toast.success('Member removed');
+      toast.success(t('groups.memberRemoved'));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to remove member');
+      toast.error(err instanceof Error ? err.message : t('groups.failedRemoveMember'));
     } finally {
       setConfirmDeleteMember(null);
     }
+  };
+
+  const closeGroupModal = () => {
+    setShowModal(false);
+    setForm(emptyGroupForm);
   };
 
   const openMembers = (group: any) => {
@@ -188,84 +195,84 @@ export default function GroupsPage() {
   return (
     <>
       <div className="page-title">
-        <h2>Groups</h2>
-        <p>Manage travel groups and their members</p>
+        <h2>{t('groups.pageTitle')}</h2>
+        <p>{t('groups.pageSubtitle')}</p>
       </div>
 
       {/* Stats */}
       <div className="stats-bar">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>🗂️</div>
-          <div className="stat-info"><p>Total Groups</p><span>{total}</span></div>
+          <div className="stat-info"><p>{t('groups.totalGroups')}</p><span>{total}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--success-light)' }}>✅</div>
-          <div className="stat-info"><p>Finished (page)</p><span>{finished}</span></div>
+          <div className="stat-info"><p>{t('groups.finished')}</p><span>{finished}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--warning-light)' }}>🔄</div>
-          <div className="stat-info"><p>Active (page)</p><span>{active}</span></div>
+          <div className="stat-info"><p>{t('groups.active')}</p><span>{active}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#f0fdf4' }}>👤</div>
-          <div className="stat-info"><p>Members (page)</p><span>{totalMembers}</span></div>
+          <div className="stat-info"><p>{t('groups.members')}</p><span>{totalMembers}</span></div>
         </div>
       </div>
 
       {/* Groups table */}
       <div className="card">
         <div className="table-header">
-          <div><h3>Groups <span>({total})</span></h3></div>
-          {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>+ New Group</button>}
+          <div><h3>{t('groups.tableTitle')} <span>({total})</span></h3></div>
+          {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
         </div>
 
         <div className="table-wrap">
           {fetching ? (
-            <div className="empty-state"><span>Loading…</span></div>
+            <div className="empty-state"><span>{t('groups.loading')}</span></div>
           ) : groups.length === 0 ? (
             <div className="empty-state">
-              <p>No groups yet</p>
-              <span>Create your first group to get started</span>
+              <p>{t('groups.noGroups')}</p>
+              <span>{t('groups.noGroupsHint')}</span>
             </div>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Date</th>
-                  <th>Members</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('groups.colName')}</th>
+                  <th>{t('groups.colDescription')}</th>
+                  <th>{t('groups.colDate')}</th>
+                  <th>{t('groups.colMembers')}</th>
+                  <th>{t('groups.colStatus')}</th>
+                  <th>{t('groups.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {groups.map((g: any) => (
                   <tr key={g.id}>
-                    <td data-label="Name" style={{ fontWeight: 500 }}>{g.name}</td>
-                    <td data-label="Description" style={{ color: 'var(--text-secondary)', maxWidth: 200 }}>
+                    <td data-label={t('groups.colName')} style={{ fontWeight: 500 }}>{g.name}</td>
+                    <td data-label={t('groups.colDescription')} style={{ color: 'var(--text-secondary)', maxWidth: 200 }}>
                       {g.description || <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
-                    <td data-label="Date" style={{ color: 'var(--text-secondary)' }}>
+                    <td data-label={t('groups.colDate')} style={{ color: 'var(--text-secondary)' }}>
                       {g.date ? new Date(g.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                     </td>
-                    <td data-label="Members">
+                    <td data-label={t('groups.colMembers')}>
                       <button className="btn-ghost btn-sm" style={{ gap: 5, fontWeight: 600 }} onClick={() => openMembers(g)}>
                         👤 {g.groupMember?.length ?? 0}
                       </button>
                     </td>
-                    <td data-label="Status">
+                    <td data-label={t('groups.colStatus')}>
                       <span className={`badge ${g.is_finished ? 'badge-green' : 'badge-yellow'}`}>
-                        {g.is_finished ? '✓ Finished' : '● Active'}
+                        {g.is_finished ? t('groups.statusFinished') : t('groups.statusActive')}
                       </span>
                     </td>
-                    <td data-label="Actions">
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn-ghost btn-sm" onClick={() => navigate(`/groups/${g.id}`)}>👁 View</button>
+                    <td data-label={t('groups.colActions')}>
+                      <div className="table-actions">
+                        <button className="btn-ghost btn-sm" onClick={() => navigate(`/groups/${g.id}`)}>{t('groups.view')}</button>
                         {!g.is_finished && (
-                          <button className="btn-success btn-sm" onClick={() => setConfirmFinish(g.id)}>Finish</button>
+                          <button className="btn-success btn-sm" onClick={() => setConfirmFinish(g.id)}>{t('groups.finish')}</button>
                         )}
-                        {isAdmin && <button className="btn-danger btn-sm" onClick={() => setConfirmDelete(g.id)}>Delete</button>}
+                        {isAdmin && <button className="btn-danger btn-sm" onClick={() => setConfirmDelete(g.id)}>{t('groups.delete')}</button>}
                       </div>
                     </td>
                   </tr>
@@ -279,11 +286,11 @@ export default function GroupsPage() {
         {!fetching && total > 0 && (
           <div className="pagination">
             <div className="pagination-info">
-              Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} of {total}
+              {t('groups.showingOf', { from: (page - 1) * perPage + 1, to: Math.min(page * perPage, total), total })}
             </div>
             <div className="pagination-controls">
               <div className="pagination-per-page">
-                <span>Per page:</span>
+                <span>{t('groups.perPage')}</span>
                 <select
                   value={perPage}
                   onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
@@ -302,7 +309,7 @@ export default function GroupsPage() {
                   className="btn-ghost btn-sm pagination-btn"
                   disabled={page <= 1}
                   onClick={() => setPage(p => p - 1)}
-                >‹ Prev</button>
+                >{t('groups.prev')}</button>
                 {Array.from({ length: lastPage }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
                   .reduce<(number | '…')[]>((acc, p, i, arr) => {
@@ -324,7 +331,7 @@ export default function GroupsPage() {
                   className="btn-ghost btn-sm pagination-btn"
                   disabled={page >= lastPage}
                   onClick={() => setPage(p => p + 1)}
-                >Next ›</button>
+                >{t('groups.next')}</button>
                 <button
                   className="btn-ghost btn-sm pagination-btn"
                   disabled={page >= lastPage}
@@ -338,31 +345,31 @@ export default function GroupsPage() {
 
       {/* Create Group Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeGroupModal()}>
           <div className="modal">
             <div className="modal-header">
-              <h3>New Group</h3>
-              <button className="btn-ghost btn-icon" onClick={() => setShowModal(false)}>✕</button>
+              <h3>{t('groups.modalTitle')}</h3>
+              <button className="btn-ghost btn-icon" onClick={closeGroupModal}>✕</button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label>Group Name</label>
-                  <input placeholder="Trip to Paris" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                  <label>{t('groups.groupName')}</label>
+                  <input placeholder={t('groups.groupNamePlaceholder')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
                 </div>
                 <div className="form-group">
-                  <label>Description <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-                  <input placeholder="Summer vacation group" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                  <label>{t('groups.description')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({t('groups.optional')})</span></label>
+                  <input placeholder={t('groups.descriptionPlaceholder')} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Date</label>
+                  <label>{t('groups.date')}</label>
                   <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="button" className="btn-secondary" onClick={closeGroupModal}>{t('groups.cancel')}</button>
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? 'Creating…' : 'Create Group'}
+                  {loading ? t('groups.creating') : t('groups.createGroup')}
                 </button>
               </div>
             </form>
@@ -373,7 +380,7 @@ export default function GroupsPage() {
       {/* Members list modal */}
       {membersGroup && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setMembersGroup(null)}>
-          <div className="modal" style={{ maxWidth: 600 }}>
+          <div className="modal modal-lg">
             <div className="modal-header">
               <div>
                 <h3>{membersGroup.name}</h3>
@@ -386,18 +393,18 @@ export default function GroupsPage() {
             <div className="modal-body" style={{ padding: 0, gap: 0, maxHeight: '60vh', overflowY: 'auto' }}>
               {(membersGroup.groupMember?.length ?? 0) === 0 ? (
                 <div className="empty-state" style={{ padding: '32px 20px' }}>
-                  <p>No members yet</p>
-                  <span>Add the first member to this group</span>
+                  <p>{t('groups.membersModalNoMembers')}</p>
+                  <span>{t('groups.membersModalNoMembersHint')}</span>
                 </div>
               ) : (
                 <table>
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Passport</th>
-                      <th>Type</th>
-                      <th>Payment</th>
-                      <th>Actions</th>
+                      <th>{t('groups.colName')}</th>
+                      <th>{t('groups.colPassport')}</th>
+                      <th>{t('groups.colType')}</th>
+                      <th>{t('groups.colPayment')}</th>
+                      <th>{t('groups.colActions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -414,9 +421,9 @@ export default function GroupsPage() {
                           {m.payment != null ? `$${Number(m.payment).toLocaleString()}` : '—'}
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: 5 }}>
-                            <button className="btn-ghost btn-sm" onClick={() => startEditMember(m)}>✏️ Edit</button>
-                            <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteMember(m)}>Delete</button>
+                          <div className="table-actions">
+                            <button className="btn-ghost btn-sm" onClick={() => startEditMember(m)}>{t('groups.edit')}</button>
+                            <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteMember(m)}>{t('groups.delete')}</button>
                           </div>
                         </td>
                       </tr>
@@ -426,9 +433,9 @@ export default function GroupsPage() {
               )}
             </div>
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setMembersGroup(null)}>Close</button>
+              <button className="btn-secondary" onClick={() => setMembersGroup(null)}>{t('groups.close')}</button>
               <button className="btn-primary" onClick={() => { setMemberForm(emptyMemberForm); setShowAddMember(true); }}>
-                + Add Member
+                {t('groups.addMember')}
               </button>
             </div>
           </div>
@@ -437,22 +444,22 @@ export default function GroupsPage() {
 
       {showAddMember && membersGroup && (
         <MemberFormModal
-          title={`Add Member — ${membersGroup.name}`}
+          title={t('groups.addMemberTitle', { groupName: membersGroup.name })}
           form={memberForm}
           loading={addingMember}
-          submitLabel="Add Member"
+          submitLabel={t('groupDetail.addMember')}
           onSubmit={handleAddMember}
           onChange={setMemberForm}
-          onClose={() => setShowAddMember(false)}
+          onClose={() => { setShowAddMember(false); setMemberForm(emptyMemberForm); }}
         />
       )}
 
       {editingMember && membersGroup && (
         <MemberFormModal
-          title={`Edit — ${editingMember.name}`}
+          title={t('groups.editMemberTitle', { memberName: editingMember.name })}
           form={editMemberForm}
           loading={savingMember}
-          submitLabel="Save Changes"
+          submitLabel={t('groups.saveChanges')}
           onSubmit={handleEditMember}
           onChange={setEditMemberForm}
           onClose={() => setEditingMember(null)}
@@ -461,9 +468,9 @@ export default function GroupsPage() {
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Delete Group"
-          message="Are you sure you want to delete this group? This action cannot be undone."
-          confirmLabel="Delete"
+          title={t('groups.confirmDeleteTitle')}
+          message={t('groups.confirmDeleteMessage')}
+          confirmLabel={t('groups.delete')}
           danger
           onConfirm={() => handleDelete(confirmDelete)}
           onCancel={() => setConfirmDelete(null)}
@@ -472,9 +479,9 @@ export default function GroupsPage() {
 
       {confirmFinish && (
         <ConfirmDialog
-          title="Finish Group"
-          message="Mark this group as finished? This cannot be reversed."
-          confirmLabel="Finish"
+          title={t('groups.confirmFinishTitle')}
+          message={t('groups.confirmFinishMessage')}
+          confirmLabel={t('groups.finish')}
           onConfirm={() => handleFinish(confirmFinish)}
           onCancel={() => setConfirmFinish(null)}
         />
@@ -482,9 +489,9 @@ export default function GroupsPage() {
 
       {confirmDeleteMember && (
         <ConfirmDialog
-          title="Remove Member"
-          message={`Remove "${confirmDeleteMember.name}" from this group? This action cannot be undone.`}
-          confirmLabel="Remove"
+          title={t('groups.confirmRemoveMemberTitle')}
+          message={t('groups.confirmRemoveMemberMessage', { name: confirmDeleteMember.name })}
+          confirmLabel={t('groupDetail.delete')}
           danger
           onConfirm={handleDeleteMember}
           onCancel={() => setConfirmDeleteMember(null)}
