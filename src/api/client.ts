@@ -1,7 +1,9 @@
+const BASE_URL = import.meta.env.VITE_API_URL ?? '';
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem('token');
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${BASE_URL}${path}`, {   // ← use env variable
     ...options,
     headers: {
       'Content-Type': 'application/json',
