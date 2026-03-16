@@ -265,7 +265,7 @@ export default function GroupsPage() {
                         {!g.is_finished && (
                           <button className="btn-success btn-sm" onClick={() => setConfirmFinish(g.id)}>Finish</button>
                         )}
-                        <button className="btn-danger btn-sm" onClick={() => setConfirmDelete(g.id)}>Delete</button>
+                        {isAdmin && <button className="btn-danger btn-sm" onClick={() => setConfirmDelete(g.id)}>Delete</button>}
                       </div>
                     </td>
                   </tr>
