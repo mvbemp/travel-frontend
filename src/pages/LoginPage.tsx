@@ -8,6 +8,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ email: false, password: false });
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordValid = password.length >= 6;
+  const isFormValid = emailValid && passwordValid;
   const { setToken } = useAuth();
   const navigate = useNavigate();
 
@@ -38,24 +43,30 @@ export default function LoginPage() {
             <label>Email address</label>
             <input
               type="email"
-              placeholder="admin@example.com"
+              placeholder="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              required
+              onBlur={() => setTouched(t => ({ ...t, email: true }))}
               autoFocus
             />
+            {touched.email && !emailValid && (
+              <span className="field-error">Enter a valid email address</span>
+            )}
           </div>
           <div className="form-group">
             <label>Password</label>
             <input
               type="password"
-              placeholder="••••••••"
+              placeholder="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              required
+              onBlur={() => setTouched(t => ({ ...t, password: true }))}
             />
+            {touched.password && !passwordValid && (
+              <span className="field-error">Password must be at least 6 characters</span>
+            )}
           </div>
-          <button type="submit" className="btn-primary login-submit" disabled={loading}>
+          <button type="submit" className="btn-primary login-submit" disabled={loading || !isFormValid}>
             {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
