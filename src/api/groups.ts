@@ -13,8 +13,10 @@ export interface AddMemberDto {
   payment?: number;
 }
 
-export const getGroups = (page = 1, perPage = 10) =>
-  apiFetch(`/groups?page=${page}&perPage=${perPage}`);
+export const getGroupDashboard = () => apiFetch('/groups/dashboard');
+
+export const getGroups = (page = 1, perPage = 10, search = '') =>
+  apiFetch(`/groups?page=${page}&perPage=${perPage}${search ? `&search=${encodeURIComponent(search)}` : ''}`);
 export const getGroup = (id: string) => apiFetch(`/groups/${id}`);
 export const createGroup = (data: CreateGroupDto) =>
   apiFetch('/groups', { method: 'POST', body: JSON.stringify(data) });

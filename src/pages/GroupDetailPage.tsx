@@ -5,10 +5,11 @@ import { useTranslation } from 'react-i18next';
 import {
   getGroup, finishGroup, addMember, updateMember, deleteMember,
 } from '../api/groups';
+import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
 
-const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, payment: undefined };
+const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ export default function GroupDetailPage() {
 
   const [group, setGroup] = useState<any | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm);
@@ -47,7 +49,10 @@ export default function GroupDetailPage() {
     }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+    getCurrencies().then(d => setCurrencies(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [id]);
 
   const handleFinish = async () => {
     try {
@@ -68,6 +73,7 @@ export default function GroupDetailPage() {
       const payload: any = { name: memberForm.name };
       if (memberForm.passport) payload.passport = memberForm.passport;
       if (memberForm.passport_type) payload.passport_type = memberForm.passport_type;
+      if (memberForm.currency_id) payload.currency_id = memberForm.currency_id;
       if (memberForm.payment !== undefined) payload.payment = Number(memberForm.payment);
 
       const newMember = await addMember(id!, payload);
@@ -84,7 +90,7 @@ export default function GroupDetailPage() {
 
   const startEdit = (m: any) => {
     setEditingMember(m);
-    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, payment: m.payment ?? undefined });
+    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, currency_id: m.currency_id ?? undefined, payment: m.payment ?? undefined });
   };
 
   const handleEditMember = async (e: { preventDefault(): void }) => {
@@ -95,6 +101,7 @@ export default function GroupDetailPage() {
       const payload: any = { name: editMemberForm.name };
       if (editMemberForm.passport !== undefined) payload.passport = editMemberForm.passport;
       if (editMemberForm.passport_type) payload.passport_type = editMemberForm.passport_type;
+      if (editMemberForm.currency_id) payload.currency_id = editMemberForm.currency_id;
       if (editMemberForm.payment !== undefined) payload.payment = Number(editMemberForm.payment);
 
       const updated = await updateMember(id!, editingMember.id, payload);
@@ -141,7 +148,16 @@ export default function GroupDetailPage() {
   }
 
   const members: any[] = group.groupMember ?? [];
-  const totalPayment = members.reduce((s: number, m: any) => s + (Number(m.payment) || 0), 0);
+
+  const paymentsByCurrency = Object.values(
+    members.reduce((acc: Record<string, { symbol: string; code: string; total: number }>, m: any) => {
+      const code = m.currency?.code ?? 'USD';
+      const symbol = m.currency?.symbol ?? '$';
+      if (!acc[code]) acc[code] = { code, symbol, total: 0 };
+      acc[code].total += Number(m.payment) || 0;
+      return acc;
+    }, {})
+  );
 
   return (
     <>
@@ -157,48 +173,59 @@ export default function GroupDetailPage() {
         )}
       </div>
 
-      {/* Info cards */}
-      <div className="stats-bar" style={{ marginBottom: 24 }}>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>📅</div>
-          <div className="stat-info">
-            <p>{t('groupDetail.date')}</p>
-            <span style={{ fontSize: 14 }}>
-              {group.date ? new Date(group.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-            </span>
+      {/* Info strip */}
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        marginBottom: 24,
+        overflow: 'hidden',
+      }}>
+        {/* Date */}
+        <div style={{ flex: '1 1 160px', padding: '16px 20px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t('groupDetail.date')}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            {group.date ? new Date(group.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: group.is_finished ? 'var(--success-light)' : 'var(--warning-light)' }}>
-            {group.is_finished ? '✅' : '🔄'}
-          </div>
-          <div className="stat-info">
-            <p>{t('groupDetail.status')}</p>
-            <span>
-              <span className={`badge ${group.is_finished ? 'badge-green' : 'badge-yellow'}`}>
-                {group.is_finished ? t('groupDetail.statusFinished') : t('groupDetail.statusActive')}
-              </span>
-            </span>
-          </div>
+
+        {/* Status */}
+        <div style={{ flex: '1 1 140px', padding: '16px 20px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t('groupDetail.status')}</div>
+          <span className={`badge ${group.is_finished ? 'badge-green' : 'badge-yellow'}`} style={{ fontSize: 12 }}>
+            {group.is_finished ? t('groupDetail.statusFinished') : t('groupDetail.statusActive')}
+          </span>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#f0fdf4' }}>👤</div>
-          <div className="stat-info"><p>{t('groupDetail.members')}</p><span>{members.length}</span></div>
+
+        {/* Members */}
+        <div style={{ flex: '1 1 120px', padding: '16px 20px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t('groupDetail.members')}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{members.length}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--warning-light)' }}>💰</div>
-          <div className="stat-info">
-            <p>{t('groupDetail.totalPayment')}</p>
-            <span style={{ fontSize: 14 }}>${totalPayment.toLocaleString()}</span>
-          </div>
-        </div>
-        {group.creator && (
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>🛡️</div>
-            <div className="stat-info">
-              <p>{t('groupDetail.createdBy')}</p>
-              <span style={{ fontSize: 13 }}>{group.creator.full_name}</span>
+
+        {/* Total Payment */}
+        <div style={{ flex: '1 1 180px', padding: '16px 20px', borderRight: group.creator ? '1px solid var(--border)' : undefined, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t('groupDetail.totalPayment')}</div>
+          {paymentsByCurrency.length === 0 ? (
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-muted)' }}>—</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {paymentsByCurrency.map(({ code, symbol, total }) => (
+                <div key={code} style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4 }}>
+                  {total.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>{code}</span>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        {/* Creator */}
+        {group.creator && (
+          <div style={{ flex: '1 1 160px', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{t('groupDetail.createdBy')}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{group.creator.full_name}</div>
           </div>
         )}
       </div>
@@ -242,7 +269,7 @@ export default function GroupDetailPage() {
                         : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td data-label={t('groupDetail.colPayment')} style={{ fontWeight: 500 }}>
-                      {m.payment != null ? `$${Number(m.payment).toLocaleString()}` : '—'}
+                      {m.payment != null ? `${m.currency?.symbol ?? '$'}${Number(m.payment).toLocaleString()}` : '—'}
                     </td>
                     <td data-label={t('groupDetail.colActions')}>
                       <div className="table-actions">
@@ -258,9 +285,15 @@ export default function GroupDetailPage() {
         </div>
 
         {members.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
             <span>{t('groupDetail.totalPaymentLabel')}</span>
-            <span style={{ fontWeight: 700, color: 'var(--text)' }}>${totalPayment.toLocaleString()}</span>
+            {paymentsByCurrency.map(({ code, symbol, total }, i) => (
+              <span key={code}>
+                {i > 0 && <span style={{ marginRight: 8, color: 'var(--border)' }}>·</span>}
+                <span style={{ fontWeight: 700, color: 'var(--text)' }}>{symbol}{total.toLocaleString()}</span>
+                {' '}<span style={{ color: 'var(--text-muted)' }}>{code}</span>
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -270,6 +303,7 @@ export default function GroupDetailPage() {
         <MemberFormModal
           title={t('groupDetail.addMemberTitle')}
           form={memberForm}
+          currencies={currencies}
           loading={addingMember}
           submitLabel={t('groupDetail.addMember')}
           onSubmit={handleAddMember}
@@ -283,6 +317,7 @@ export default function GroupDetailPage() {
         <MemberFormModal
           title={t('groupDetail.editMemberTitle', { memberName: editingMember.name })}
           form={editMemberForm}
+          currencies={currencies}
           loading={savingMember}
           submitLabel={t('groupDetail.saveChanges')}
           onSubmit={handleEditMember}

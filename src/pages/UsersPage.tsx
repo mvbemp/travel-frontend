@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { getUsers, createUser, deleteUser, type CreateUserDto } from '../api/users';
@@ -19,22 +19,33 @@ const emptyForm: CreateUserDto = {
   email: '', full_name: '', password: '', type: 'user', phone_number: '',
 };
 
+const PER_PAGE_OPTIONS = [10, 15, 20, 50];
+
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [lastPage, setLastPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState<CreateUserDto>(emptyForm);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const { t } = useTranslation();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closeModal = () => { setShowModal(false); setForm(emptyForm); };
 
-  const load = async () => {
+  const load = async (p = page, pp = perPage, s = search) => {
     setFetching(true);
     try {
-      const data = await getUsers();
-      setUsers(Array.isArray(data) ? data : []);
+      const res = await getUsers(p, pp, s);
+      setUsers(Array.isArray(res.data) ? res.data : []);
+      setTotal(res.total ?? 0);
+      setPage(res.page ?? p);
+      setLastPage(res.lastPage ?? 1);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('users.failedLoad'));
     } finally {
@@ -42,7 +53,16 @@ export default function UsersPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(page, perPage, search); }, [page, perPage]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      load(1, perPage, value);
+    }, 400);
+  };
 
   const handleCreate = async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -51,7 +71,8 @@ export default function UsersPage() {
       await createUser(form);
       setForm(emptyForm);
       setShowModal(false);
-      await load();
+      setPage(1);
+      await load(1, perPage, search);
       toast.success(t('users.created'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('users.failedCreate'));
@@ -63,8 +84,8 @@ export default function UsersPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteUser(id);
-      setUsers(prev => prev.filter(u => u.id !== id));
       toast.success(t('users.deleted'));
+      await load(page, perPage, search);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('users.failedDelete'));
     } finally {
@@ -85,7 +106,7 @@ export default function UsersPage() {
           <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>👥</div>
           <div className="stat-info">
             <p>{t('users.totalUsers')}</p>
-            <span>{users.length}</span>
+            <span>{total}</span>
           </div>
         </div>
         <div className="stat-card">
@@ -108,11 +129,19 @@ export default function UsersPage() {
       <div className="card">
         <div className="table-header">
           <div>
-            <h3>{t('users.tableTitle')} <span>({users.length})</span></h3>
+            <h3>{t('users.tableTitle')} <span>({total})</span></h3>
           </div>
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
-            {t('users.newUser')}
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              style={{ width: 220, height: 36, fontSize: 14 }}
+              placeholder={t('users.searchPlaceholder')}
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+            <button className="btn-primary" onClick={() => setShowModal(true)}>
+              {t('users.newUser')}
+            </button>
+          </div>
         </div>
 
         <div className="table-wrap">
@@ -120,8 +149,8 @@ export default function UsersPage() {
             <div className="empty-state"><span>{t('users.loading')}</span></div>
           ) : users.length === 0 ? (
             <div className="empty-state">
-              <p>{t('users.noUsers')}</p>
-              <span>{t('users.noUsersHint')}</span>
+              <p>{search ? t('users.noResults') : t('users.noUsers')}</p>
+              <span>{search ? t('users.noResultsHint') : t('users.noUsersHint')}</span>
             </div>
           ) : (
             <table>
@@ -163,6 +192,45 @@ export default function UsersPage() {
             </table>
           )}
         </div>
+
+        {/* Pagination */}
+        {!fetching && total > 0 && (
+          <div className="pagination">
+            <div className="pagination-info">
+              {t('users.showingOf', { from: (page - 1) * perPage + 1, to: Math.min(page * perPage, total), total })}
+            </div>
+            <div className="pagination-controls">
+              <div className="pagination-per-page">
+                <span>{t('users.perPage')}</span>
+                <select
+                  value={perPage}
+                  onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
+                  style={{ width: 'auto', height: 30, padding: '0 24px 0 8px', fontSize: 12 }}
+                >
+                  {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div className="pagination-pages">
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(1)}>«</button>
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('users.prev')}</button>
+                {Array.from({ length: lastPage }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
+                  .reduce<(number | '…')[]>((acc, p, i, arr) => {
+                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === '…'
+                      ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
+                      : <button key={p} className={`btn-sm pagination-btn${page === p ? ' active' : ' btn-ghost'}`} onClick={() => setPage(p as number)}>{p}</button>
+                  )}
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}>{t('users.next')}</button>
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(lastPage)}>»</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

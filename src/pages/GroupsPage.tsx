@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  getGroups, createGroup, deleteGroup, finishGroup, addMember, updateMember, deleteMember,
+  getGroupDashboard, getGroups, createGroup, deleteGroup, finishGroup, addMember, updateMember, deleteMember,
   type CreateGroupDto,
 } from '../api/groups';
+import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
 
 const emptyGroupForm: CreateGroupDto = { name: '', description: '', date: '' };
-const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, payment: undefined };
+const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
 
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
@@ -32,6 +33,9 @@ export default function GroupsPage() {
   const [perPage, setPerPage] = useState(10);
   const [lastPage, setLastPage] = useState(1);
   const [fetching, setFetching] = useState(true);
+  const [search, setSearch] = useState('');
+  const [dashboard, setDashboard] = useState({ total: 0, finished: 0, active: 0, totalMembers: 0 });
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [form, setForm] = useState<CreateGroupDto>(emptyGroupForm);
   const [loading, setLoading] = useState(false);
@@ -51,11 +55,21 @@ export default function GroupsPage() {
   const [savingMember, setSavingMember] = useState(false);
 
   const [confirmDeleteMember, setConfirmDeleteMember] = useState<any | null>(null);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
 
-  const load = async (p = page, pp = perPage) => {
+  const loadDashboard = async () => {
+    try {
+      const res = await getGroupDashboard();
+      setDashboard(res);
+    } catch {
+      // non-critical, keep previous values
+    }
+  };
+
+  const load = async (p = page, pp = perPage, s = search) => {
     setFetching(true);
     try {
-      const res = await getGroups(p, pp);
+      const res = await getGroups(p, pp, s);
       setGroups(Array.isArray(res.data) ? res.data : []);
       setTotal(res.total ?? 0);
       setPage(res.page ?? p);
@@ -67,7 +81,20 @@ export default function GroupsPage() {
     }
   };
 
-  useEffect(() => { load(page, perPage); }, [page, perPage]);
+  useEffect(() => {
+    loadDashboard();
+    getCurrencies().then(d => setCurrencies(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+  useEffect(() => { load(page, perPage, search); }, [page, perPage]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      load(1, perPage, value);
+    }, 400);
+  };
 
   const handleCreate = async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -76,8 +103,8 @@ export default function GroupsPage() {
       await createGroup(form);
       setForm(emptyGroupForm);
       setShowModal(false);
-      await load(1, perPage);
       setPage(1);
+      await Promise.all([load(1, perPage, search), loadDashboard()]);
       toast.success(t('groups.created'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('groups.failedCreate'));
@@ -89,8 +116,7 @@ export default function GroupsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteGroup(id);
-      setGroups(prev => prev.filter(g => g.id !== id));
-      setTotal(prev => prev - 1);
+      await Promise.all([load(page, perPage, search), loadDashboard()]);
       toast.success(t('groups.deleted'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('groups.failedDelete'));
@@ -102,7 +128,7 @@ export default function GroupsPage() {
   const handleFinish = async (id: string) => {
     try {
       await finishGroup(id);
-      setGroups(prev => prev.map(g => g.id === id ? { ...g, is_finished: true } : g));
+      await Promise.all([load(page, perPage, search), loadDashboard()]);
       if (membersGroup?.id === id) setMembersGroup((prev: any) => ({ ...prev, is_finished: true }));
       toast.success(t('groups.markedFinished'));
     } catch (err: unknown) {
@@ -120,6 +146,7 @@ export default function GroupsPage() {
       const payload: any = { name: memberForm.name };
       if (memberForm.passport) payload.passport = memberForm.passport;
       if (memberForm.passport_type) payload.passport_type = memberForm.passport_type;
+      if (memberForm.currency_id) payload.currency_id = memberForm.currency_id;
       if (memberForm.payment !== undefined) payload.payment = Number(memberForm.payment);
       const newMember = await addMember(membersGroup.id, payload);
       const updatedGroup = { ...membersGroup, groupMember: [...(membersGroup.groupMember ?? []), newMember] };
@@ -137,7 +164,7 @@ export default function GroupsPage() {
 
   const startEditMember = (m: any) => {
     setEditingMember(m);
-    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, payment: m.payment ?? undefined });
+    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, currency_id: m.currency_id ?? undefined, payment: m.payment ?? undefined });
   };
 
   const handleEditMember = async (e: { preventDefault(): void }) => {
@@ -148,6 +175,7 @@ export default function GroupsPage() {
       const payload: any = { name: editMemberForm.name };
       if (editMemberForm.passport !== undefined) payload.passport = editMemberForm.passport;
       if (editMemberForm.passport_type) payload.passport_type = editMemberForm.passport_type;
+      if (editMemberForm.currency_id) payload.currency_id = editMemberForm.currency_id;
       if (editMemberForm.payment !== undefined) payload.payment = Number(editMemberForm.payment);
       const updated = await updateMember(membersGroup.id, editingMember.id, payload);
       const updatedGroup = { ...membersGroup, groupMember: membersGroup.groupMember.map((m: any) => m.id === editingMember.id ? updated : m) };
@@ -188,10 +216,6 @@ export default function GroupsPage() {
     setShowAddMember(false);
   };
 
-  const finished = groups.filter(g => g.is_finished).length;
-  const active = groups.length - finished;
-  const totalMembers = groups.reduce((sum, g) => sum + (g.groupMember?.length ?? 0), 0);
-
   return (
     <>
       <div className="page-title">
@@ -203,19 +227,19 @@ export default function GroupsPage() {
       <div className="stats-bar">
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>🗂️</div>
-          <div className="stat-info"><p>{t('groups.totalGroups')}</p><span>{total}</span></div>
+          <div className="stat-info"><p>{t('groups.totalGroups')}</p><span>{dashboard.total}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--success-light)' }}>✅</div>
-          <div className="stat-info"><p>{t('groups.finished')}</p><span>{finished}</span></div>
+          <div className="stat-info"><p>{t('groups.finished')}</p><span>{dashboard.finished}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'var(--warning-light)' }}>🔄</div>
-          <div className="stat-info"><p>{t('groups.active')}</p><span>{active}</span></div>
+          <div className="stat-info"><p>{t('groups.active')}</p><span>{dashboard.active}</span></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#f0fdf4' }}>👤</div>
-          <div className="stat-info"><p>{t('groups.members')}</p><span>{totalMembers}</span></div>
+          <div className="stat-info"><p>{t('groups.members')}</p><span>{dashboard.totalMembers}</span></div>
         </div>
       </div>
 
@@ -223,7 +247,15 @@ export default function GroupsPage() {
       <div className="card">
         <div className="table-header">
           <div><h3>{t('groups.tableTitle')} <span>({total})</span></h3></div>
-          {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              style={{ width: 220, height: 36, fontSize: 14 }}
+              placeholder={t('groups.searchPlaceholder')}
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+            {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
+          </div>
         </div>
 
         <div className="table-wrap">
@@ -231,8 +263,8 @@ export default function GroupsPage() {
             <div className="empty-state"><span>{t('groups.loading')}</span></div>
           ) : groups.length === 0 ? (
             <div className="empty-state">
-              <p>{t('groups.noGroups')}</p>
-              <span>{t('groups.noGroupsHint')}</span>
+              <p>{search ? t('groups.noResults') : t('groups.noGroups')}</p>
+              <span>{search ? t('groups.noResultsHint') : t('groups.noGroupsHint')}</span>
             </div>
           ) : (
             <table>
@@ -257,9 +289,9 @@ export default function GroupsPage() {
                       {g.date ? new Date(g.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                     </td>
                     <td data-label={t('groups.colMembers')}>
-                      <button className="btn-ghost btn-sm" style={{ gap: 5, fontWeight: 600 }} onClick={() => openMembers(g)}>
-                        👤 {g.groupMember?.length ?? 0}
-                      </button>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        👤 {g._count?.groupMember ?? 0}
+                      </span>
                     </td>
                     <td data-label={t('groups.colStatus')}>
                       <span className={`badge ${g.is_finished ? 'badge-green' : 'badge-yellow'}`}>
@@ -446,6 +478,7 @@ export default function GroupsPage() {
         <MemberFormModal
           title={t('groups.addMemberTitle', { groupName: membersGroup.name })}
           form={memberForm}
+          currencies={currencies}
           loading={addingMember}
           submitLabel={t('groupDetail.addMember')}
           onSubmit={handleAddMember}
@@ -458,6 +491,7 @@ export default function GroupsPage() {
         <MemberFormModal
           title={t('groups.editMemberTitle', { memberName: editingMember.name })}
           form={editMemberForm}
+          currencies={currencies}
           loading={savingMember}
           submitLabel={t('groups.saveChanges')}
           onSubmit={handleEditMember}

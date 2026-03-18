@@ -6,6 +6,8 @@ import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
+import CurrenciesPage from './pages/CurrenciesPage';
+import ExpensesPage from './pages/ExpensesPage';
 import GroupsPage from './pages/GroupsPage';
 import GroupDetailPage from './pages/GroupDetailPage';
 
@@ -20,6 +22,8 @@ function App() {
             <Route element={<Layout />}>
               <Route element={<AdminRoute />}>
                 <Route path="/users" element={<UsersPage />} />
+                <Route path="/currencies" element={<CurrenciesPage />} />
+                <Route path="/expenses" element={<ExpensesPage />} />
               </Route>
               <Route path="/groups" element={<GroupsPage />} />
               <Route path="/groups/:id" element={<GroupDetailPage />} />

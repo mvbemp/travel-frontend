@@ -14,6 +14,8 @@ function usePageTitle() {
   const location = useLocation();
   const path = location.pathname;
   if (path.startsWith('/users')) return { icon: '👥', label: t('nav.users') };
+  if (path.startsWith('/currencies')) return { icon: '💱', label: t('nav.currencies') };
+  if (path.startsWith('/expenses')) return { icon: '💰', label: t('nav.expenses') };
   if (path.match(/^\/groups\/.+/)) return { icon: '🗂️', label: t('nav.groups') };
   if (path.startsWith('/groups')) return { icon: '🗂️', label: t('nav.groups') };
   return { icon: '✈️', label: 'Travel' };
@@ -50,7 +52,11 @@ export default function Layout() {
   };
 
   const navItems = [
-    ...(isAdmin ? [{ to: '/users', label: t('nav.users'), icon: '👥' }] : []),
+    ...(isAdmin ? [
+      { to: '/users', label: t('nav.users'), icon: '👥' },
+      { to: '/currencies', label: t('nav.currencies'), icon: '💱' },
+      { to: '/expenses', label: t('nav.expenses'), icon: '💰' },
+    ] : []),
     { to: '/groups', label: t('nav.groups'), icon: '🗂️' },
   ];
 

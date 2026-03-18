@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { AddMemberDto, UpdateMemberDto } from '../api/groups';
+import type { Currency } from '../api/currencies';
 
 function formatPassport(raw: string): string {
   const letters = raw.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
@@ -11,12 +12,14 @@ type MemberForm = {
   name: string;
   passport?: string;
   passport_type?: 'green_passport' | 'red_passport' | 'id_card';
+  currency_id?: number;
   payment?: number;
 };
 
 interface MemberFormModalProps {
   title: string;
   form: MemberForm;
+  currencies: Currency[];
   loading: boolean;
   submitLabel: string;
   onSubmit: (e: { preventDefault(): void }) => void;
@@ -29,6 +32,7 @@ export type { MemberForm };
 export default function MemberFormModal({
   title,
   form,
+  currencies,
   loading,
   submitLabel,
   onSubmit,
@@ -81,15 +85,27 @@ export default function MemberFormModal({
                 </select>
               </div>
               <div className="form-group">
-                <label>{t('member.payment')}</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={form.payment ?? ''}
-                  onChange={e => set({ payment: e.target.value === '' ? undefined : Number(e.target.value) })}
-                />
+                <label>{t('member.currency')}</label>
+                <select
+                  value={form.currency_id ?? ''}
+                  onChange={e => set({ currency_id: e.target.value ? +e.target.value : undefined })}
+                >
+                  <option value="">{t('member.currencyDefault')}</option>
+                  {currencies.map(c => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.symbol}</option>
+                  ))}
+                </select>
               </div>
+            </div>
+            <div className="form-group">
+              <label>{t('member.payment')}</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={form.payment ?? ''}
+                onChange={e => set({ payment: e.target.value === '' ? undefined : Number(e.target.value) })}
+              />
             </div>
           </div>
           <div className="modal-footer">

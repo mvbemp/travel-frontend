@@ -8,7 +8,8 @@ export interface CreateUserDto {
   phone_number: string;
 }
 
-export const getUsers = () => apiFetch('/users');
+export const getUsers = (page = 1, perPage = 15, search = '') =>
+  apiFetch(`/users?page=${page}&perPage=${perPage}${search ? `&search=${encodeURIComponent(search)}` : ''}`);
 export const getUser = (id: string) => apiFetch(`/users/${id}`);
 export const createUser = (data: CreateUserDto) =>
   apiFetch('/users', { method: 'POST', body: JSON.stringify(data) });
