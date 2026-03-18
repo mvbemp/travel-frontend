@@ -210,12 +210,6 @@ export default function GroupsPage() {
     setForm(emptyGroupForm);
   };
 
-  const openMembers = (group: any) => {
-    setMembersGroup(group);
-    setEditingMember(null);
-    setShowAddMember(false);
-  };
-
   return (
     <>
       <div className="page-title">
