@@ -212,7 +212,7 @@ export default function GroupDetailPage() {
             <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-muted)' }}>—</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {paymentsByCurrency.map(({ code, symbol, total }) => (
+              {paymentsByCurrency.map(({ code, total }) => (
                 <div key={code} style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4 }}>
                   {total.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>{code}</span>
                 </div>
