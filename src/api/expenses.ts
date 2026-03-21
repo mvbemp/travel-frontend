@@ -17,6 +17,8 @@ export interface CreateExpenseDto {
 }
 
 export const getExpenses = () => apiFetch('/expenses');
+export const getExpensesPaginated = (page = 1, perPage = 15, search = '') =>
+  apiFetch(`/expenses?page=${page}&perPage=${perPage}${search ? `&search=${encodeURIComponent(search)}` : ''}`);
 export const getExpense = (id: number) => apiFetch(`/expenses/${id}`);
 export const createExpense = (data: CreateExpenseDto) =>
   apiFetch('/expenses', { method: 'POST', body: JSON.stringify(data) });

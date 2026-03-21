@@ -128,20 +128,19 @@ export default function UsersPage() {
       {/* Table card */}
       <div className="card">
         <div className="table-header">
-          <div>
-            <h3>{t('users.tableTitle')} <span>({total})</span></h3>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              style={{ width: 220, height: 36, fontSize: 14 }}
-              placeholder={t('users.searchPlaceholder')}
-              value={search}
-              onChange={e => handleSearchChange(e.target.value)}
-            />
-            <button className="btn-primary" onClick={() => setShowModal(true)}>
-              {t('users.newUser')}
-            </button>
-          </div>
+          <div><h3>{t('users.tableTitle')} <span>({total})</span></h3></div>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>
+            {t('users.newUser')}
+          </button>
+        </div>
+
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
+          <input
+            style={{ maxWidth: 360, height: 36 }}
+            placeholder={t('users.searchPlaceholder')}
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
         </div>
 
         <div className="table-wrap">

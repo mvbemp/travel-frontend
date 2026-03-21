@@ -16,6 +16,8 @@ export interface CreateCurrencyDto {
 }
 
 export const getCurrencies = () => apiFetch('/currencies');
+export const getCurrenciesPaginated = (page = 1, perPage = 15, search = '') =>
+  apiFetch(`/currencies?page=${page}&perPage=${perPage}${search ? `&search=${encodeURIComponent(search)}` : ''}`);
 export const getCurrency = (id: number) => apiFetch(`/currencies/${id}`);
 export const createCurrency = (data: CreateCurrencyDto) =>
   apiFetch('/currencies', { method: 'POST', body: JSON.stringify(data) });

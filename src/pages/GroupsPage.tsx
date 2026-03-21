@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
@@ -219,21 +219,41 @@ export default function GroupsPage() {
 
       {/* Stats */}
       <div className="stats-bar">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>🗂️</div>
-          <div className="stat-info"><p>{t('groups.totalGroups')}</p><span>{dashboard.total}</span></div>
+        <div className="stat-card" style={{ '--stat-accent': '#2563eb' } as React.CSSProperties}>
+          <div className="stat-card-head">
+            <p className="stat-label">{t('groups.totalGroups')}</p>
+            <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+          <span className="stat-value">{dashboard.total}</span>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--success-light)' }}>✅</div>
-          <div className="stat-info"><p>{t('groups.finished')}</p><span>{dashboard.finished}</span></div>
+        <div className="stat-card" style={{ '--stat-accent': '#10b981' } as React.CSSProperties}>
+          <div className="stat-card-head">
+            <p className="stat-label">{t('groups.finished')}</p>
+            <div className="stat-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 16 8 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+            </div>
+          </div>
+          <span className="stat-value">{dashboard.finished}</span>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--warning-light)' }}>🔄</div>
-          <div className="stat-info"><p>{t('groups.active')}</p><span>{dashboard.active}</span></div>
+        <div className="stat-card" style={{ '--stat-accent': '#f59e0b' } as React.CSSProperties}>
+          <div className="stat-card-head">
+            <p className="stat-label">{t('groups.active')}</p>
+            <div className="stat-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+          </div>
+          <span className="stat-value">{dashboard.active}</span>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#f0fdf4' }}>👤</div>
-          <div className="stat-info"><p>{t('groups.members')}</p><span>{dashboard.totalMembers}</span></div>
+        <div className="stat-card" style={{ '--stat-accent': '#8b5cf6' } as React.CSSProperties}>
+          <div className="stat-card-head">
+            <p className="stat-label">{t('groups.members')}</p>
+            <div className="stat-icon" style={{ background: '#f5f3ff', color: '#8b5cf6' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+          </div>
+          <span className="stat-value">{dashboard.totalMembers}</span>
         </div>
       </div>
 
@@ -241,15 +261,16 @@ export default function GroupsPage() {
       <div className="card">
         <div className="table-header">
           <div><h3>{t('groups.tableTitle')} <span>({total})</span></h3></div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              style={{ width: 220, height: 36, fontSize: 14 }}
-              placeholder={t('groups.searchPlaceholder')}
-              value={search}
-              onChange={e => handleSearchChange(e.target.value)}
-            />
-            {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
-          </div>
+          {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
+        </div>
+
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
+          <input
+            style={{ maxWidth: 360, height: 36 }}
+            placeholder={t('groups.searchPlaceholder')}
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
         </div>
 
         <div className="table-wrap">

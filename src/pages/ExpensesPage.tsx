@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  getExpenses,
+  getExpensesPaginated,
   createExpense,
   updateExpense,
   deleteExpense,
@@ -13,9 +13,16 @@ import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const emptyForm: CreateExpenseDto = { name: '', currency_id: 0, value: 0 };
+const PER_PAGE_OPTIONS = [10, 20, 50];
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [lastPage, setLastPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [form, setForm] = useState<CreateExpenseDto>(emptyForm);
   const [editId, setEditId] = useState<number | null>(null);
@@ -27,12 +34,18 @@ export default function ExpensesPage() {
 
   const closeModal = () => { setShowModal(false); setForm(emptyForm); setEditId(null); };
 
-  const load = async () => {
+  const load = async (p = page, pp = perPage, s = search) => {
     setFetching(true);
     try {
-      const [expData, curData] = await Promise.all([getExpenses(), getCurrencies()]);
-      setExpenses(Array.isArray(expData) ? expData : []);
-      setCurrencies(Array.isArray(curData) ? curData : []);
+      const [expData, curData] = await Promise.all([
+        getExpensesPaginated(p, pp, s),
+        currencies.length === 0 ? getCurrencies() : Promise.resolve(null),
+      ]);
+      setExpenses(Array.isArray(expData.data) ? expData.data : []);
+      setTotal(expData.total ?? 0);
+      setPage(expData.page ?? p);
+      setLastPage(expData.lastPage ?? 1);
+      if (curData !== null) setCurrencies(Array.isArray(curData) ? curData : []);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('expenses.failedLoad'));
     } finally {
@@ -40,7 +53,13 @@ export default function ExpensesPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(page, perPage, search); }, [page, perPage]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setPage(1); load(1, perPage, value); }, 400);
+  };
 
   const openCreate = () => {
     setForm({ ...emptyForm, currency_id: currencies[0]?.id ?? 0 });
@@ -94,23 +113,32 @@ export default function ExpensesPage() {
       </div>
 
       <div className="stats-bar">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'var(--primary-light)' }}>💰</div>
-          <div className="stat-info">
-            <p>{t('expenses.total')}</p>
-            <span>{expenses.length}</span>
+        <div className="stat-card" style={{ '--stat-accent': '#10b981' } as React.CSSProperties}>
+          <div className="stat-card-head">
+            <p className="stat-label">{t('expenses.total')}</p>
+            <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
           </div>
+          <span className="stat-value">{total}</span>
         </div>
       </div>
 
       <div className="card">
         <div className="table-header">
-          <div>
-            <h3>{t('expenses.tableTitle')} <span>({expenses.length})</span></h3>
-          </div>
+          <div><h3>{t('expenses.tableTitle')} <span>({total})</span></h3></div>
           <button className="btn-primary" onClick={openCreate}>
             {t('expenses.newExpense')}
           </button>
+        </div>
+
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
+          <input
+            style={{ maxWidth: 360, height: 36 }}
+            placeholder={t('expenses.searchPlaceholder')}
+            value={search}
+            onChange={e => handleSearchChange(e.target.value)}
+          />
         </div>
 
         <div className="table-wrap">
@@ -118,8 +146,8 @@ export default function ExpensesPage() {
             <div className="empty-state"><span>{t('expenses.loading')}</span></div>
           ) : expenses.length === 0 ? (
             <div className="empty-state">
-              <p>{t('expenses.noExpenses')}</p>
-              <span>{t('expenses.noExpensesHint')}</span>
+              <p>{search ? t('expenses.noResults') : t('expenses.noExpenses')}</p>
+              <span>{search ? t('expenses.noResultsHint') : t('expenses.noExpensesHint')}</span>
             </div>
           ) : (
             <table>
@@ -135,7 +163,7 @@ export default function ExpensesPage() {
               <tbody>
                 {expenses.map((e, i) => (
                   <tr key={e.id}>
-                    <td data-label="#">{i + 1}</td>
+                    <td data-label="#">{(page - 1) * perPage + i + 1}</td>
                     <td data-label={t('expenses.colName')} style={{ fontWeight: 500 }}>{e.name}</td>
                     <td data-label={t('expenses.colCurrency')}>
                       <span className="badge badge-blue">{e.currency.code}</span>
@@ -144,13 +172,9 @@ export default function ExpensesPage() {
                       {e.currency.symbol}{parseFloat(e.value).toLocaleString()}
                     </td>
                     <td data-label={t('expenses.colActions')}>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn-secondary btn-sm" onClick={() => openEdit(e)}>
-                          {t('expenses.edit')}
-                        </button>
-                        <button className="btn-danger btn-sm" onClick={() => setConfirmId(e.id)}>
-                          {t('expenses.delete')}
-                        </button>
+                      <div className="table-actions">
+                        <button className="btn-secondary btn-sm" onClick={() => openEdit(e)}>{t('expenses.edit')}</button>
+                        <button className="btn-danger btn-sm" onClick={() => setConfirmId(e.id)}>{t('expenses.delete')}</button>
                       </div>
                     </td>
                   </tr>
@@ -159,6 +183,38 @@ export default function ExpensesPage() {
             </table>
           )}
         </div>
+
+        {!fetching && total > 0 && (
+          <div className="pagination">
+            <div className="pagination-info">
+              {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} / {total}
+            </div>
+            <div className="pagination-controls">
+              <div className="pagination-per-page">
+                <span>{t('groups.perPage')}</span>
+                <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }} style={{ width: 'auto', height: 30, padding: '0 24px 0 8px', fontSize: 12 }}>
+                  {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div className="pagination-pages">
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(1)}>«</button>
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('groups.prev')}</button>
+                {Array.from({ length: lastPage }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
+                  .reduce<(number | '…')[]>((acc, p, i, arr) => {
+                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
+                    acc.push(p); return acc;
+                  }, [])
+                  .map((p, i) => p === '…'
+                    ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
+                    : <button key={p} className={`btn-sm pagination-btn${page === p ? ' active' : ' btn-ghost'}`} onClick={() => setPage(p as number)}>{p}</button>
+                  )}
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}>{t('groups.next')}</button>
+                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(lastPage)}>»</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (
