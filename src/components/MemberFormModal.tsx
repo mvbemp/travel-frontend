@@ -90,7 +90,7 @@ export default function MemberFormModal({
                   value={form.currency_id ?? ''}
                   onChange={e => set({ currency_id: e.target.value ? +e.target.value : undefined })}
                 >
-                  <option value="">{t('member.currencyDefault')}</option>
+                  <option value="">{t('member.currency')}</option>
                   {currencies.map(c => (
                     <option key={c.id} value={c.id}>{c.code} — {c.symbol}</option>
                   ))}

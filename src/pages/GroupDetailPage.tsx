@@ -7,9 +7,10 @@ import {
   addGroupExpense, deleteGroupExpense,
 } from '../api/groups';
 import { getCurrencies, type Currency } from '../api/currencies';
-import { getExpenses, type Expense } from '../api/expenses';
+
 import ConfirmDialog from '../components/ConfirmDialog';
 import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
+import { getExpenses, type Expense } from '../api/common';
 
 const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
 
