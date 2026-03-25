@@ -5,7 +5,7 @@ import { getMe } from '../api/auth';
 interface JwtUser {
   id: number;
   email: string;
-  type: 'admin' | 'user';
+  type: 'admin' | 'user' | 'super_admin';
   full_name?: string;
 }
 
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   );
 
-  const isAdmin = user?.type === 'admin';
+  const isAdmin = user?.type === 'admin' || user?.type === 'super_admin';
 
   const setToken = (t: string | null) => {
     setTokenState(t);

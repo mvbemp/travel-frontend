@@ -45,6 +45,7 @@
     "role": "Rol",
     "roleUser": "Foydalanuvchi",
     "roleAdmin": "Administrator",
+    "roleSuperAdmin": "Super Administrator",
     "emailLabel": "Email",
     "phonePlaceholder": "+998 (90) 123-45-67",
     "passwordLabel": "Parol",

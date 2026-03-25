@@ -176,8 +176,12 @@ export default function UsersPage() {
                     <td data-label={t('users.colEmail')} style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
                     <td data-label={t('users.colPhone')} style={{ color: 'var(--text-secondary)' }}>{u.phone_number}</td>
                     <td data-label={t('users.colRole')}>
-                      <span className={`badge ${u.type === 'admin' ? 'badge-blue' : 'badge-gray'}`}>
-                        {u.type === 'admin' ? t('users.roleAdmin') : t('users.roleUser')}
+                      <span className={`badge ${
+                          u.type === 'admin' ? 'badge-blue' : u.type === 'super_admin' ? 'badge-green' : 'badge-gray'                          
+                        }`}>
+                        {
+                          u.type === 'admin' ? t('users.roleAdmin') : u.type === 'super_admin' ? t('users.roleSuperAdmin') : t('users.roleUser')
+                        }
                       </span>
                     </td>
                     <td data-label={t('users.colActions')}>
@@ -252,6 +256,7 @@ export default function UsersPage() {
                     <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as 'admin' | 'user' })}>
                       <option value="user">{t('users.roleUser')}</option>
                       <option value="admin">{t('users.roleAdmin')}</option>
+                      <option value="super_admin">{t('users.roleSuperAdmin')}</option>
                     </select>
                   </div>
                 </div>

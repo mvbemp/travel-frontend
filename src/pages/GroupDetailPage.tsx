@@ -11,10 +11,12 @@ import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
 import { getExpenses, type Expense } from '../api/common';
+import { useAuth } from '../context/AuthContext';
 
 const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
 
 export default function GroupDetailPage() {
+  const authUser = useAuth()
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -63,8 +65,8 @@ export default function GroupDetailPage() {
 
   useEffect(() => {
     load();
-    getCurrencies().then(d => setCurrencies(Array.isArray(d) ? d : [])).catch(() => {});
-    getExpenses().then(d => setAllExpenses(Array.isArray(d) ? d : [])).catch(() => {});
+    getCurrencies().then(d => setCurrencies(Array.isArray(d) ? d : [])).catch(() => { });
+    getExpenses().then(d => setAllExpenses(Array.isArray(d) ? d : [])).catch(() => { });
   }, [id]);
 
   const handleFinish = async () => {
@@ -248,7 +250,7 @@ export default function GroupDetailPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
             {group.date && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                 {new Date(group.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
               </span>
             )}
@@ -266,7 +268,7 @@ export default function GroupDetailPage() {
               <>
                 <span style={{ color: 'var(--border)' }}>·</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                   {group.creator.full_name}
                 </span>
               </>
@@ -280,84 +282,94 @@ export default function GroupDetailPage() {
 
       {/* Info cards */}
       <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+
         {/* Members */}
         <div className="stat-card" style={{ '--stat-accent': '#8b5cf6' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groupDetail.members')}</p>
             <div className="stat-icon" style={{ background: '#f5f3ff', color: '#8b5cf6' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
             </div>
           </div>
           <span className="stat-value">{members.length}</span>
         </div>
 
         {/* Total Payment */}
-        <div className="stat-card" style={{ '--stat-accent': '#0ea5e9' } as React.CSSProperties}>
-          <div className="stat-card-head">
-            <p className="stat-label">{t('groupDetail.totalPayment')}</p>
-            <div className="stat-icon" style={{ background: '#f0f9ff', color: '#0ea5e9' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-          </div>
-          {paymentsByCurrency.length === 0 ? (
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {(paymentsByCurrency as { code: string; symbol: string; total: number }[]).map(({ code, symbol, total }) => (
-                <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{symbol}{total.toLocaleString()}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+        {
+          authUser.user?.type !== 'user' ?
+            <div className="stat-card" style={{ '--stat-accent': '#0ea5e9' } as React.CSSProperties}>
+              <div className="stat-card-head">
+                <p className="stat-label">{t('groupDetail.totalPayment')}</p>
+                <div className="stat-icon" style={{ background: '#f0f9ff', color: '#0ea5e9' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+              {paymentsByCurrency.length === 0 ? (
+                <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {(paymentsByCurrency as { code: string; symbol: string; total: number }[]).map(({ code, symbol, total }) => (
+                    <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{symbol}{total.toLocaleString()}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div> : null
+        }
 
         {/* Total Expenses */}
-        <div className="stat-card" style={{ '--stat-accent': '#f43f5e' } as React.CSSProperties}>
-          <div className="stat-card-head">
-            <p className="stat-label">{t('groupDetail.totalExpenses')}</p>
-            <div className="stat-icon" style={{ background: '#fff1f2', color: '#f43f5e' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            </div>
-          </div>
-          {expensesByCurrency.length === 0 ? (
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {expensesByCurrency.map(({ code, symbol, total }) => (
-                <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{symbol}{total.toLocaleString()}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+        {
+          authUser.user?.type === 'super_admin' || authUser.user?.type === 'admin' ?
+            <div className="stat-card" style={{ '--stat-accent': '#f43f5e' } as React.CSSProperties}>
+              <div className="stat-card-head">
+                <p className="stat-label">{t('groupDetail.totalExpenses')}</p>
+                <div className="stat-icon" style={{ background: '#fff1f2', color: '#f43f5e' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+              {expensesByCurrency.length === 0 ? (
+                <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {expensesByCurrency.map(({ code, symbol, total }) => (
+                    <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>{symbol}{total.toLocaleString()}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div> : null
+        }
 
         {/* Profit */}
-        <div className="stat-card" style={{ '--stat-accent': '#22c55e' } as React.CSSProperties}>
-          <div className="stat-card-head">
-            <p className="stat-label">{t('groupDetail.profit')}</p>
-            <div className="stat-icon" style={{ background: '#f0fdf4', color: '#22c55e' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            </div>
-          </div>
-          {profitByCurrency.length === 0 ? (
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {profitByCurrency.map(({ code, symbol, profit }) => (
-                <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                    {profit >= 0 ? '+' : ''}{symbol}{profit.toLocaleString()}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+        {
+          authUser.user?.type === 'super_admin' ?
+            <div className="stat-card" style={{ '--stat-accent': '#22c55e' } as React.CSSProperties}>
+              <div className="stat-card-head">
+                <p className="stat-label">{t('groupDetail.profit')}</p>
+                <div className="stat-icon" style={{ background: '#f0fdf4', color: '#22c55e' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" /></svg>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+              {profitByCurrency.length === 0 ? (
+                <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {profitByCurrency.map(({ code, symbol, profit }) => (
+                    <div key={code} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                        {profit >= 0 ? '+' : ''}{symbol}{profit.toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div> : null
+        }
 
       </div>
 

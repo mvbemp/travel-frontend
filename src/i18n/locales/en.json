@@ -45,6 +45,7 @@
     "role": "Role",
     "roleUser": "User",
     "roleAdmin": "Admin",
+    "roleSuperAdmin": "Super Admin",
     "emailLabel": "Email",
     "phonePlaceholder": "+998 (90) 123-45-67",
     "passwordLabel": "Password",
