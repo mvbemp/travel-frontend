@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { AlertTriangle, CheckCircle, X } from 'lucide-react';
 
 interface ConfirmDialogProps {
   title: string;
@@ -21,12 +22,28 @@ export default function ConfirmDialog({
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="modal" style={{ maxWidth: 380 }}>
+      <div className="modal modal-sm">
         <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="btn-ghost btn-icon" onClick={onCancel}>✕</button>
+          <div className="modal-header-title">
+            <div
+              className="modal-header-icon"
+              style={{
+                background: danger ? 'var(--danger-light)' : 'var(--primary-light)',
+                color: danger ? 'var(--danger)' : 'var(--primary)',
+              }}
+            >
+              {danger
+                ? <AlertTriangle size={18} strokeWidth={2} />
+                : <CheckCircle size={18} strokeWidth={2} />
+              }
+            </div>
+            <h3>{title}</h3>
+          </div>
+          <button className="btn-ghost btn-icon" onClick={onCancel}>
+            <X size={16} />
+          </button>
         </div>
-        <div className="modal-body" style={{ paddingBottom: 8 }}>
+        <div className="modal-body" style={{ paddingBottom: 12 }}>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{message}</p>
         </div>
         <div className="modal-footer">

@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  getExpensesPaginated,
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  type Expense,
-  type CreateExpenseDto,
+  Receipt, Plus, Search, Pencil, Trash2, X, Loader2, Tag, Coins,
+} from 'lucide-react';
+import {
+  getExpensesPaginated, createExpense, updateExpense, deleteExpense,
+  type Expense, type CreateExpenseDto,
 } from '../api/expenses';
 import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Pagination } from './UsersPage';
 
 const emptyForm: CreateExpenseDto = { name: '', currency_id: 0, value: 0 };
 const PER_PAGE_OPTIONS = [10, 20, 50];
@@ -113,11 +113,11 @@ export default function ExpensesPage() {
       </div>
 
       <div className="stats-bar">
-        <div className="stat-card" style={{ '--stat-accent': '#10b981' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--warning)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('expenses.total')}</p>
-            <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div className="stat-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
+              <Receipt size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{total}</span>
@@ -126,26 +126,38 @@ export default function ExpensesPage() {
 
       <div className="card">
         <div className="table-header">
-          <div><h3>{t('expenses.tableTitle')} <span>({total})</span></h3></div>
-          <button className="btn-primary" onClick={openCreate}>
-            {t('expenses.newExpense')}
-          </button>
+          <div className="table-header-left">
+            <h3>{t('expenses.tableTitle')}</h3>
+            <span className="table-header-sub">{total} {t('expenses.total').toLowerCase()}</span>
+          </div>
+          <div className="table-header-actions">
+            <button className="btn-primary" onClick={openCreate}>
+              <Plus size={15} />{t('expenses.newExpense')}
+            </button>
+          </div>
         </div>
 
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
-          <input
-            style={{ maxWidth: 360, height: 36 }}
-            placeholder={t('expenses.searchPlaceholder')}
-            value={search}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className="search-bar">
+          <div className="input-with-icon search-input">
+            <span className="input-icon"><Search size={14} /></span>
+            <input
+              placeholder={t('expenses.searchPlaceholder')}
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{ height: 36 }}
+            />
+          </div>
         </div>
 
         <div className="table-wrap">
           {fetching ? (
-            <div className="empty-state"><span>{t('expenses.loading')}</span></div>
+            <div className="loading-state">
+              <div className="spinner spinner-lg" />
+              <span>{t('expenses.loading')}</span>
+            </div>
           ) : expenses.length === 0 ? (
             <div className="empty-state">
+              <div className="empty-state-icon"><Receipt size={22} /></div>
               <p>{search ? t('expenses.noResults') : t('expenses.noExpenses')}</p>
               <span>{search ? t('expenses.noResultsHint') : t('expenses.noExpensesHint')}</span>
             </div>
@@ -163,18 +175,31 @@ export default function ExpensesPage() {
               <tbody>
                 {expenses.map((e, i) => (
                   <tr key={e.id}>
-                    <td data-label="#">{(page - 1) * perPage + i + 1}</td>
-                    <td data-label={t('expenses.colName')} style={{ fontWeight: 500 }}>{e.name}</td>
-                    <td data-label={t('expenses.colCurrency')}>
-                      <span className="badge badge-blue">{e.currency.code}</span>
+                    <td data-label="#" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{(page - 1) * perPage + i + 1}</td>
+                    <td data-label={t('expenses.colName')}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 600 }}>
+                        <Tag size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        {e.name}
+                      </span>
                     </td>
-                    <td data-label={t('expenses.colValue')} style={{ color: 'var(--text-secondary)' }}>
-                      {e.currency.symbol}{parseFloat(e.value).toLocaleString()}
+                    <td data-label={t('expenses.colCurrency')}>
+                      <span className="badge badge-blue">
+                        <Coins size={10} />{e.currency.code}
+                      </span>
+                    </td>
+                    <td data-label={t('expenses.colValue')}>
+                      <span style={{ fontWeight: 700, color: 'var(--text)' }}>
+                        {e.currency.symbol}{parseFloat(e.value).toLocaleString()}
+                      </span>
                     </td>
                     <td data-label={t('expenses.colActions')}>
                       <div className="table-actions">
-                        <button className="btn-secondary btn-sm" onClick={() => openEdit(e)}>{t('expenses.edit')}</button>
-                        <button className="btn-danger btn-sm" onClick={() => setConfirmId(e.id)}>{t('expenses.delete')}</button>
+                        <button className="btn-ghost btn-icon" onClick={() => openEdit(e)} title={t('expenses.edit')}>
+                          <Pencil size={14} />
+                        </button>
+                        <button className="btn-danger btn-icon" onClick={() => setConfirmId(e.id)} title={t('expenses.delete')}>
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -185,76 +210,66 @@ export default function ExpensesPage() {
         </div>
 
         {!fetching && total > 0 && (
-          <div className="pagination">
-            <div className="pagination-info">
-              {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} / {total}
-            </div>
-            <div className="pagination-controls">
-              <div className="pagination-per-page">
-                <span>{t('groups.perPage')}</span>
-                <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }} style={{ width: 'auto', height: 30, padding: '0 24px 0 8px', fontSize: 12 }}>
-                  {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <div className="pagination-pages">
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(1)}>«</button>
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('groups.prev')}</button>
-                {Array.from({ length: lastPage }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, i, arr) => {
-                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
-                    acc.push(p); return acc;
-                  }, [])
-                  .map((p, i) => p === '…'
-                    ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
-                    : <button key={p} className={`btn-sm pagination-btn${page === p ? ' active' : ' btn-ghost'}`} onClick={() => setPage(p as number)}>{p}</button>
-                  )}
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}>{t('groups.next')}</button>
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(lastPage)}>»</button>
-              </div>
-            </div>
-          </div>
+          <Pagination
+            page={page} lastPage={lastPage} perPage={perPage} total={total}
+            perPageOptions={PER_PAGE_OPTIONS}
+            showingFrom={(page - 1) * perPage + 1}
+            showingTo={Math.min(page * perPage, total)}
+            onPage={setPage}
+            onPerPage={n => { setPerPage(n); setPage(1); }}
+            perPageLabel={t('groups.perPage')}
+          />
         )}
       </div>
 
+      {/* Create / Edit Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={ev => ev.target === ev.currentTarget && closeModal()}>
           <div className="modal">
             <div className="modal-header">
-              <h3>{editId ? t('expenses.modalEditTitle') : t('expenses.modalTitle')}</h3>
-              <button className="btn-ghost btn-icon" onClick={closeModal}>✕</button>
+              <div className="modal-header-title">
+                <div className="modal-header-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
+                  <Receipt size={18} strokeWidth={2} />
+                </div>
+                <h3>{editId ? t('expenses.modalEditTitle') : t('expenses.modalTitle')}</h3>
+              </div>
+              <button className="btn-ghost btn-icon" onClick={closeModal}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
                   <label>{t('expenses.nameLabel')}</label>
-                  <input
-                    placeholder={t('expenses.namePlaceholder')}
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Tag size={14} /></span>
+                    <input
+                      placeholder={t('expenses.namePlaceholder')}
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label>{t('expenses.currencyLabel')}</label>
-                    <select
-                      value={form.currency_id}
-                      onChange={e => setForm({ ...form, currency_id: +e.target.value })}
-                      required
-                    >
-                      {currencies.map(c => (
-                        <option key={c.id} value={c.id}>{c.code} — {c.country}</option>
-                      ))}
-                    </select>
+                    <div className="input-with-icon">
+                      <span className="input-icon"><Coins size={14} /></span>
+                      <select
+                        value={form.currency_id}
+                        onChange={e => setForm({ ...form, currency_id: +e.target.value })}
+                        style={{ paddingLeft: 36 }}
+                        required
+                      >
+                        {currencies.map(c => (
+                          <option key={c.id} value={c.id}>{c.code} — {c.country}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label>{t('expenses.valueLabel')}</label>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      type="number" min="0" step="0.01" placeholder="0.00"
                       value={form.value}
                       onChange={e => setForm({ ...form, value: parseFloat(e.target.value) || 0 })}
                       required
@@ -265,7 +280,10 @@ export default function ExpensesPage() {
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>{t('expenses.cancel')}</button>
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? t('expenses.saving') : editId ? t('expenses.saveChanges') : t('expenses.createExpense')}
+                  {loading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />{t('expenses.saving')}</>
+                    : editId ? t('expenses.saveChanges') : <><Plus size={14} />{t('expenses.createExpense')}</>
+                  }
                 </button>
               </div>
             </form>

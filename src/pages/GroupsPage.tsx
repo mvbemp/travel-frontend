@@ -4,28 +4,23 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  getGroupDashboard, getGroups, createGroup, deleteGroup, finishGroup, addMember, updateMember, deleteMember,
+  Map, CheckCircle2, Zap, Users, Plus, Search, Eye, Flag, Trash2,
+  X, Calendar, Loader2, FileText,
+} from 'lucide-react';
+import {
+  getGroupDashboard, getGroups, createGroup, deleteGroup, finishGroup,
   type CreateGroupDto,
 } from '../api/groups';
-import { getCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
-import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
+import { Pagination } from './UsersPage';
 
 const emptyGroupForm: CreateGroupDto = { name: '', description: '', date: '' };
-const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
-
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
 export default function GroupsPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { t } = useTranslation();
-
-  const PASSPORT_LABELS: Record<string, string> = {
-    green_passport: t('groups.passportGreen'),
-    red_passport: t('groups.passportRed'),
-    id_card: t('groups.passportId'),
-  };
 
   const [groups, setGroups] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -40,30 +35,11 @@ export default function GroupsPage() {
   const [form, setForm] = useState<CreateGroupDto>(emptyGroupForm);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmFinish, setConfirmFinish] = useState<string | null>(null);
 
-  // Members panel
-  const [membersGroup, setMembersGroup] = useState<any | null>(null);
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [memberForm, setMemberForm] = useState<MemberForm>(emptyMemberForm);
-  const [addingMember, setAddingMember] = useState(false);
-
-  const [editingMember, setEditingMember] = useState<any | null>(null);
-  const [editMemberForm, setEditMemberForm] = useState<MemberForm>(emptyMemberForm);
-  const [savingMember, setSavingMember] = useState(false);
-
-  const [confirmDeleteMember, setConfirmDeleteMember] = useState<any | null>(null);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-
   const loadDashboard = async () => {
-    try {
-      const res = await getGroupDashboard();
-      setDashboard(res);
-    } catch {
-      // non-critical, keep previous values
-    }
+    try { const res = await getGroupDashboard(); setDashboard(res); } catch { /* silent */ }
   };
 
   const load = async (p = page, pp = perPage, s = search) => {
@@ -81,19 +57,13 @@ export default function GroupsPage() {
     }
   };
 
-  useEffect(() => {
-    loadDashboard();
-    getCurrencies().then(d => setCurrencies(Array.isArray(d) ? d : [])).catch(() => {});
-  }, []);
+  useEffect(() => { loadDashboard(); }, []);
   useEffect(() => { load(page, perPage, search); }, [page, perPage]);
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      setPage(1);
-      load(1, perPage, value);
-    }, 400);
+    searchTimer.current = setTimeout(() => { setPage(1); load(1, perPage, value); }, 400);
   };
 
   const handleCreate = async (e: { preventDefault(): void }) => {
@@ -129,7 +99,6 @@ export default function GroupsPage() {
     try {
       await finishGroup(id);
       await Promise.all([load(page, perPage, search), loadDashboard()]);
-      if (membersGroup?.id === id) setMembersGroup((prev: any) => ({ ...prev, is_finished: true }));
       toast.success(t('groups.markedFinished'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('groups.failedFinish'));
@@ -138,77 +107,7 @@ export default function GroupsPage() {
     }
   };
 
-  const handleAddMember = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!membersGroup) return;
-    setAddingMember(true);
-    try {
-      const payload: any = { name: memberForm.name };
-      if (memberForm.passport) payload.passport = memberForm.passport;
-      if (memberForm.passport_type) payload.passport_type = memberForm.passport_type;
-      if (memberForm.currency_id) payload.currency_id = memberForm.currency_id;
-      if (memberForm.payment !== undefined) payload.payment = Number(memberForm.payment);
-      const newMember = await addMember(membersGroup.id, payload);
-      const updatedGroup = { ...membersGroup, groupMember: [...(membersGroup.groupMember ?? []), newMember] };
-      setMembersGroup(updatedGroup);
-      setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
-      setMemberForm(emptyMemberForm);
-      setShowAddMember(false);
-      toast.success(t('groups.memberAdded'));
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : t('groups.failedAddMember'));
-    } finally {
-      setAddingMember(false);
-    }
-  };
-
-  const startEditMember = (m: any) => {
-    setEditingMember(m);
-    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, currency_id: m.currency_id ?? undefined, payment: m.payment ?? undefined });
-  };
-
-  const handleEditMember = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!membersGroup || !editingMember) return;
-    setSavingMember(true);
-    try {
-      const payload: any = { name: editMemberForm.name };
-      if (editMemberForm.passport !== undefined) payload.passport = editMemberForm.passport;
-      if (editMemberForm.passport_type) payload.passport_type = editMemberForm.passport_type;
-      if (editMemberForm.currency_id) payload.currency_id = editMemberForm.currency_id;
-      if (editMemberForm.payment !== undefined) payload.payment = Number(editMemberForm.payment);
-      const updated = await updateMember(membersGroup.id, editingMember.id, payload);
-      const updatedGroup = { ...membersGroup, groupMember: membersGroup.groupMember.map((m: any) => m.id === editingMember.id ? updated : m) };
-      setMembersGroup(updatedGroup);
-      setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
-      setEditingMember(null);
-      toast.success(t('groups.memberUpdated'));
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : t('groups.failedUpdateMember'));
-    } finally {
-      setSavingMember(false);
-    }
-  };
-
-  const handleDeleteMember = async () => {
-    if (!membersGroup || !confirmDeleteMember) return;
-    try {
-      await deleteMember(membersGroup.id, confirmDeleteMember.id);
-      const updatedGroup = { ...membersGroup, groupMember: membersGroup.groupMember.filter((m: any) => m.id !== confirmDeleteMember.id) };
-      setMembersGroup(updatedGroup);
-      setGroups(prev => prev.map(g => g.id === membersGroup.id ? updatedGroup : g));
-      toast.success(t('groups.memberRemoved'));
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : t('groups.failedRemoveMember'));
-    } finally {
-      setConfirmDeleteMember(null);
-    }
-  };
-
-  const closeGroupModal = () => {
-    setShowModal(false);
-    setForm(emptyGroupForm);
-  };
+  const closeGroupModal = () => { setShowModal(false); setForm(emptyGroupForm); };
 
   return (
     <>
@@ -219,65 +118,81 @@ export default function GroupsPage() {
 
       {/* Stats */}
       <div className="stats-bar">
-        <div className="stat-card" style={{ '--stat-accent': '#2563eb' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--primary)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groups.totalGroups')}</p>
             <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <Map size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{dashboard.total}</span>
         </div>
-        <div className="stat-card" style={{ '--stat-accent': '#10b981' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--success)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groups.finished')}</p>
             <div className="stat-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 16 8 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+              <CheckCircle2 size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{dashboard.finished}</span>
         </div>
-        <div className="stat-card" style={{ '--stat-accent': '#f59e0b' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--warning)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groups.active')}</p>
             <div className="stat-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <Zap size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{dashboard.active}</span>
         </div>
-        <div className="stat-card" style={{ '--stat-accent': '#8b5cf6' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--purple)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groups.members')}</p>
-            <div className="stat-icon" style={{ background: '#f5f3ff', color: '#8b5cf6' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <div className="stat-icon" style={{ background: 'var(--purple-light)', color: 'var(--purple)' }}>
+              <Users size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{dashboard.totalMembers}</span>
         </div>
       </div>
 
-      {/* Groups table */}
+      {/* Table */}
       <div className="card">
         <div className="table-header">
-          <div><h3>{t('groups.tableTitle')} <span>({total})</span></h3></div>
-          {isAdmin && <button className="btn-primary" onClick={() => setShowModal(true)}>{t('groups.newGroup')}</button>}
+          <div className="table-header-left">
+            <h3>{t('groups.tableTitle')}</h3>
+            <span className="table-header-sub">{total} {t('groups.totalGroups').toLowerCase()}</span>
+          </div>
+          <div className="table-header-actions">
+            {isAdmin && (
+              <button className="btn-primary" onClick={() => setShowModal(true)}>
+                <Plus size={15} />{t('groups.newGroup')}
+              </button>
+            )}
+          </div>
         </div>
 
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
-          <input
-            style={{ maxWidth: 360, height: 36 }}
-            placeholder={t('groups.searchPlaceholder')}
-            value={search}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className="search-bar">
+          <div className="input-with-icon search-input">
+            <span className="input-icon"><Search size={14} /></span>
+            <input
+              placeholder={t('groups.searchPlaceholder')}
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{ height: 36 }}
+            />
+          </div>
         </div>
 
         <div className="table-wrap">
           {fetching ? (
-            <div className="empty-state"><span>{t('groups.loading')}</span></div>
+            <div className="loading-state">
+              <div className="spinner spinner-lg" />
+              <span>{t('groups.loading')}</span>
+            </div>
           ) : groups.length === 0 ? (
             <div className="empty-state">
+              <div className="empty-state-icon"><Map size={22} /></div>
               <p>{search ? t('groups.noResults') : t('groups.noGroups')}</p>
               <span>{search ? t('groups.noResultsHint') : t('groups.noGroupsHint')}</span>
             </div>
@@ -296,30 +211,59 @@ export default function GroupsPage() {
               <tbody>
                 {groups.map((g: any) => (
                   <tr key={g.id}>
-                    <td data-label={t('groups.colName')} style={{ fontWeight: 500 }}>{g.name}</td>
+                    <td data-label={t('groups.colName')}>
+                      <span style={{ fontWeight: 600 }}>{g.name}</span>
+                    </td>
                     <td data-label={t('groups.colDescription')} style={{ color: 'var(--text-secondary)', maxWidth: 200 }}>
                       {g.description || <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
-                    <td data-label={t('groups.colDate')} style={{ color: 'var(--text-secondary)' }}>
-                      {g.date ? new Date(g.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                    <td data-label={t('groups.colDate')}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--text-secondary)', fontSize: 12 }}>
+                        <Calendar size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        {g.date ? new Date(g.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </span>
                     </td>
                     <td data-label={t('groups.colMembers')}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        👤 {g._count?.groupMember ?? 0}
+                        <Users size={13} style={{ color: 'var(--text-muted)' }} />
+                        {g._count?.groupMember ?? 0}
                       </span>
                     </td>
                     <td data-label={t('groups.colStatus')}>
                       <span className={`badge ${g.is_finished ? 'badge-green' : 'badge-yellow'}`}>
-                        {g.is_finished ? t('groups.statusFinished') : t('groups.statusActive')}
+                        {g.is_finished
+                          ? <><CheckCircle2 size={10} />{t('groups.statusFinished')}</>
+                          : <><Zap size={10} />{t('groups.statusActive')}</>
+                        }
                       </span>
                     </td>
                     <td data-label={t('groups.colActions')}>
                       <div className="table-actions">
-                        <button className="btn-ghost btn-sm" onClick={() => navigate(`/groups/${g.id}`)}>{t('groups.view')}</button>
+                        <button
+                          className="btn-ghost btn-icon"
+                          onClick={() => navigate(`/groups/${g.id}`)}
+                          title={t('groups.view')}
+                        >
+                          <Eye size={15} />
+                        </button>
                         {!g.is_finished && (
-                          <button className="btn-success btn-sm" onClick={() => setConfirmFinish(g.id)}>{t('groups.finish')}</button>
+                          <button
+                            className="btn-success btn-icon"
+                            onClick={() => setConfirmFinish(g.id)}
+                            title={t('groups.finish')}
+                          >
+                            <Flag size={14} />
+                          </button>
                         )}
-                        {isAdmin && <button className="btn-danger btn-sm" onClick={() => setConfirmDelete(g.id)}>{t('groups.delete')}</button>}
+                        {isAdmin && (
+                          <button
+                            className="btn-danger btn-icon"
+                            onClick={() => setConfirmDelete(g.id)}
+                            title={t('groups.delete')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -329,64 +273,16 @@ export default function GroupsPage() {
           )}
         </div>
 
-        {/* Pagination footer */}
         {!fetching && total > 0 && (
-          <div className="pagination">
-            <div className="pagination-info">
-              {t('groups.showingOf', { from: (page - 1) * perPage + 1, to: Math.min(page * perPage, total), total })}
-            </div>
-            <div className="pagination-controls">
-              <div className="pagination-per-page">
-                <span>{t('groups.perPage')}</span>
-                <select
-                  value={perPage}
-                  onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
-                  style={{ width: 'auto', height: 30, padding: '0 24px 0 8px', fontSize: 12 }}
-                >
-                  {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <div className="pagination-pages">
-                <button
-                  className="btn-ghost btn-sm pagination-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage(1)}
-                >«</button>
-                <button
-                  className="btn-ghost btn-sm pagination-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                >{t('groups.prev')}</button>
-                {Array.from({ length: lastPage }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, i, arr) => {
-                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, i) =>
-                    p === '…'
-                      ? <span key={`ellipsis-${i}`} className="pagination-ellipsis">…</span>
-                      : <button
-                          key={p}
-                          className={`btn-sm pagination-btn${page === p ? ' active' : ' btn-ghost'}`}
-                          onClick={() => setPage(p as number)}
-                        >{p}</button>
-                  )
-                }
-                <button
-                  className="btn-ghost btn-sm pagination-btn"
-                  disabled={page >= lastPage}
-                  onClick={() => setPage(p => p + 1)}
-                >{t('groups.next')}</button>
-                <button
-                  className="btn-ghost btn-sm pagination-btn"
-                  disabled={page >= lastPage}
-                  onClick={() => setPage(lastPage)}
-                >»</button>
-              </div>
-            </div>
-          </div>
+          <Pagination
+            page={page} lastPage={lastPage} perPage={perPage} total={total}
+            perPageOptions={PER_PAGE_OPTIONS}
+            showingFrom={(page - 1) * perPage + 1}
+            showingTo={Math.min(page * perPage, total)}
+            onPage={setPage}
+            onPerPage={n => { setPerPage(n); setPage(1); }}
+            perPageLabel={t('groups.perPage')}
+          />
         )}
       </div>
 
@@ -395,124 +291,53 @@ export default function GroupsPage() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeGroupModal()}>
           <div className="modal">
             <div className="modal-header">
-              <h3>{t('groups.modalTitle')}</h3>
-              <button className="btn-ghost btn-icon" onClick={closeGroupModal}>✕</button>
+              <div className="modal-header-title">
+                <div className="modal-header-icon" style={{ background: 'var(--purple-light)', color: 'var(--purple)' }}>
+                  <Map size={18} strokeWidth={2} />
+                </div>
+                <h3>{t('groups.modalTitle')}</h3>
+              </div>
+              <button className="btn-ghost btn-icon" onClick={closeGroupModal}><X size={16} /></button>
             </div>
             <form onSubmit={handleCreate}>
               <div className="modal-body">
                 <div className="form-group">
                   <label>{t('groups.groupName')}</label>
-                  <input placeholder={t('groups.groupNamePlaceholder')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Map size={14} /></span>
+                    <input placeholder={t('groups.groupNamePlaceholder')} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+                  </div>
                 </div>
                 <div className="form-group">
-                  <label>{t('groups.description')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({t('groups.optional')})</span></label>
-                  <input placeholder={t('groups.descriptionPlaceholder')} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                  <label>
+                    {t('groups.description')}{' '}
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({t('groups.optional')})</span>
+                  </label>
+                  <div className="input-with-icon">
+                    <span className="input-icon"><FileText size={14} /></span>
+                    <input placeholder={t('groups.descriptionPlaceholder')} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>{t('groups.date')}</label>
-                  <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required />
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Calendar size={14} /></span>
+                    <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required style={{ paddingLeft: 36 }} />
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeGroupModal}>{t('groups.cancel')}</button>
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? t('groups.creating') : t('groups.createGroup')}
+                  {loading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />{t('groups.creating')}</>
+                    : <><Plus size={14} />{t('groups.createGroup')}</>
+                  }
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
-
-      {/* Members list modal */}
-      {membersGroup && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setMembersGroup(null)}>
-          <div className="modal modal-lg">
-            <div className="modal-header">
-              <div>
-                <h3>{membersGroup.name}</h3>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {membersGroup.groupMember?.length ?? 0} member{membersGroup.groupMember?.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              <button className="btn-ghost btn-icon" onClick={() => setMembersGroup(null)}>✕</button>
-            </div>
-            <div className="modal-body" style={{ padding: 0, gap: 0, maxHeight: '60vh', overflowY: 'auto' }}>
-              {(membersGroup.groupMember?.length ?? 0) === 0 ? (
-                <div className="empty-state" style={{ padding: '32px 20px' }}>
-                  <p>{t('groups.membersModalNoMembers')}</p>
-                  <span>{t('groups.membersModalNoMembersHint')}</span>
-                </div>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('groups.colName')}</th>
-                      <th>{t('groups.colPassport')}</th>
-                      <th>{t('groups.colType')}</th>
-                      <th>{t('groups.colPayment')}</th>
-                      <th>{t('groups.colActions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {membersGroup.groupMember.map((m: any) => (
-                      <tr key={m.id}>
-                        <td style={{ fontWeight: 500 }}>{m.name}</td>
-                        <td style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{m.passport || '—'}</td>
-                        <td>
-                          {m.passport_type
-                            ? <span className="badge badge-blue">{PASSPORT_LABELS[m.passport_type] ?? m.passport_type}</span>
-                            : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                        </td>
-                        <td style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                          {m.payment != null ? `$${Number(m.payment).toLocaleString()}` : '—'}
-                        </td>
-                        <td>
-                          <div className="table-actions">
-                            <button className="btn-ghost btn-sm" onClick={() => startEditMember(m)}>{t('groups.edit')}</button>
-                            <button className="btn-danger btn-sm" onClick={() => setConfirmDeleteMember(m)}>{t('groups.delete')}</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setMembersGroup(null)}>{t('groups.close')}</button>
-              <button className="btn-primary" onClick={() => { setMemberForm(emptyMemberForm); setShowAddMember(true); }}>
-                {t('groups.addMember')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddMember && membersGroup && (
-        <MemberFormModal
-          title={t('groups.addMemberTitle', { groupName: membersGroup.name })}
-          form={memberForm}
-          currencies={currencies}
-          loading={addingMember}
-          submitLabel={t('groupDetail.addMember')}
-          onSubmit={handleAddMember}
-          onChange={setMemberForm}
-          onClose={() => { setShowAddMember(false); setMemberForm(emptyMemberForm); }}
-        />
-      )}
-
-      {editingMember && membersGroup && (
-        <MemberFormModal
-          title={t('groups.editMemberTitle', { memberName: editingMember.name })}
-          form={editMemberForm}
-          currencies={currencies}
-          loading={savingMember}
-          submitLabel={t('groups.saveChanges')}
-          onSubmit={handleEditMember}
-          onChange={setEditMemberForm}
-          onClose={() => setEditingMember(null)}
-        />
       )}
 
       {confirmDelete && (
@@ -533,17 +358,6 @@ export default function GroupsPage() {
           confirmLabel={t('groups.finish')}
           onConfirm={() => handleFinish(confirmFinish)}
           onCancel={() => setConfirmFinish(null)}
-        />
-      )}
-
-      {confirmDeleteMember && (
-        <ConfirmDialog
-          title={t('groups.confirmRemoveMemberTitle')}
-          message={t('groups.confirmRemoveMemberMessage', { name: confirmDeleteMember.name })}
-          confirmLabel={t('groupDetail.delete')}
-          danger
-          onConfirm={handleDeleteMember}
-          onCancel={() => setConfirmDeleteMember(null)}
         />
       )}
     </>

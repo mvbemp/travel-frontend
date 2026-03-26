@@ -2,23 +2,33 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import {
+  Users, DollarSign, Receipt, Map, LogOut, Menu, X,
+  ChevronDown, Plane, Globe,
+} from 'lucide-react';
 
 const LANGS = [
-  { code: 'uz', label: 'UZ', flag: '🇺🇿' },
-  { code: 'ru', label: 'RU', flag: '🇷🇺' },
-  { code: 'en', label: 'EN', flag: '🇬🇧' },
+  { code: 'uz', label: 'UZ', flag: '🇺🇿', name: 'O\'zbekcha' },
+  { code: 'ru', label: 'RU', flag: '🇷🇺', name: 'Русский' },
+  { code: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
 ] as const;
 
-function usePageTitle() {
+const PAGE_ICONS: Record<string, { Icon: React.ComponentType<{size?:number;strokeWidth?:number}>, bg: string, color: string }> = {
+  users:      { Icon: Users,      bg: 'var(--primary-light)',  color: 'var(--primary)' },
+  currencies: { Icon: DollarSign, bg: 'var(--success-light)',  color: 'var(--success)' },
+  expenses:   { Icon: Receipt,    bg: 'var(--warning-light)',  color: 'var(--warning)' },
+  groups:     { Icon: Map,        bg: 'var(--purple-light)',   color: 'var(--purple)' },
+};
+
+function usePageMeta() {
   const { t } = useTranslation();
   const location = useLocation();
   const path = location.pathname;
-  if (path.startsWith('/users')) return { icon: '👥', label: t('nav.users') };
-  if (path.startsWith('/currencies')) return { icon: '💱', label: t('nav.currencies') };
-  if (path.startsWith('/expenses')) return { icon: '💰', label: t('nav.expenses') };
-  if (path.match(/^\/groups\/.+/)) return { icon: '🗂️', label: t('nav.groups') };
-  if (path.startsWith('/groups')) return { icon: '🗂️', label: t('nav.groups') };
-  return { icon: '✈️', label: 'Travel' };
+  if (path.startsWith('/users'))      return { key: 'users',      label: t('nav.users') };
+  if (path.startsWith('/currencies')) return { key: 'currencies', label: t('nav.currencies') };
+  if (path.startsWith('/expenses'))   return { key: 'expenses',   label: t('nav.expenses') };
+  if (path.startsWith('/groups'))     return { key: 'groups',     label: t('nav.groups') };
+  return { key: 'groups', label: 'Travel' };
 }
 
 export default function Layout() {
@@ -28,9 +38,10 @@ export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
-  const pageTitle = usePageTitle();
+  const pageMeta = usePageMeta();
 
   const currentLang = LANGS.find(l => l.code === i18n.language) ?? LANGS[0];
+  const pageIconData = PAGE_ICONS[pageMeta.key];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -53,42 +64,51 @@ export default function Layout() {
 
   const navItems = [
     ...(isAdmin ? [
-      { to: '/users', label: t('nav.users'), icon: '👥' },
-      { to: '/currencies', label: t('nav.currencies'), icon: '💱' },
-      { to: '/expenses', label: t('nav.expenses'), icon: '💰' },
+      { to: '/users',      label: t('nav.users'),      Icon: Users },
+      { to: '/currencies', label: t('nav.currencies'), Icon: DollarSign },
+      { to: '/expenses',   label: t('nav.expenses'),   Icon: Receipt },
     ] : []),
-    { to: '/groups', label: t('nav.groups'), icon: '🗂️' },
+    { to: '/groups', label: t('nav.groups'), Icon: Map },
   ];
+
+  const initials = (user?.full_name ?? user?.email ?? 'U').slice(0, 2).toUpperCase();
 
   return (
     <div className="app-shell">
-      {/* ── Mobile top bar ── */}
+      {/* ── Mobile header ── */}
       <header className="mobile-header">
-        <div className="sidebar-logo" style={{ border: 'none', padding: 0 }}>
-          <div className="sidebar-logo-icon">✈</div>
-          <div>
-            <div className="sidebar-logo-text">Travel</div>
-            <span className="sidebar-logo-sub">{t('nav.adminPanel')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="sidebar-logo-icon" style={{ width: 30, height: 30, borderRadius: 8 }}>
+            <Plane size={14} />
           </div>
+          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>Travel</span>
         </div>
-        <button className="btn-ghost btn-icon hamburger" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
-          <span className="hamburger-icon">{menuOpen ? '✕' : '☰'}</span>
+        <button
+          className="btn-ghost btn-icon hamburger"
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label="Menu"
+        >
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       </header>
 
-      {/* ── Backdrop ── */}
+      {/* ── Sidebar backdrop ── */}
       {menuOpen && <div className="sidebar-backdrop" onClick={closeMenu} />}
 
       {/* ── Sidebar ── */}
       <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
+        {/* Logo */}
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">✈</div>
+          <div className="sidebar-logo-icon">
+            <Plane size={18} strokeWidth={2.5} />
+          </div>
           <div>
             <div className="sidebar-logo-text">Travel</div>
             <span className="sidebar-logo-sub">{t('nav.adminPanel')}</span>
           </div>
         </div>
 
+        {/* Navigation */}
         <nav className="sidebar-nav">
           {navItems.map(item => (
             <NavLink
@@ -97,33 +117,42 @@ export default function Layout() {
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               onClick={closeMenu}
             >
-              <span className="nav-item-icon">{item.icon}</span>
+              <span className="nav-item-icon">
+                <item.Icon size={16} strokeWidth={2} />
+              </span>
               {item.label}
             </NavLink>
           ))}
         </nav>
 
+        {/* User / Logout */}
         <div className="sidebar-footer">
           <div className="sidebar-user" onClick={handleLogout} title={t('nav.logout')}>
-            <div className="sidebar-user-avatar">
-              {user?.full_name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U'}
-            </div>
+            <div className="sidebar-user-avatar">{initials}</div>
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user?.full_name ?? user?.email ?? t('nav.user')}</div>
-              <div className="sidebar-user-role">{isAdmin ? t('nav.administrator') : t('nav.user')} · {t('nav.logout')}</div>
+              <div className="sidebar-user-role">
+                {isAdmin ? t('nav.administrator') : t('nav.user')} · {t('nav.logout')}
+              </div>
             </div>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>→</span>
+            <span className="sidebar-logout-icon">
+              <LogOut size={14} />
+            </span>
           </div>
         </div>
       </aside>
 
       {/* ── Main content ── */}
       <main className="main-content">
-        {/* ── Top header bar ── */}
+        {/* Topbar */}
         <div className="topbar">
           <div className="topbar-left">
-            <span className="topbar-page-icon">{pageTitle.icon}</span>
-            <h1 className="topbar-page-title">{pageTitle.label}</h1>
+            {pageIconData && (
+              <div className="topbar-page-icon" style={{ background: pageIconData.bg, color: pageIconData.color }}>
+                <pageIconData.Icon size={16} strokeWidth={2} />
+              </div>
+            )}
+            <h1 className="topbar-page-title">{pageMeta.label}</h1>
           </div>
 
           <div className="topbar-right">
@@ -137,7 +166,9 @@ export default function Layout() {
               >
                 <span className="lang-flag">{currentLang.flag}</span>
                 <span className="lang-label">{currentLang.label}</span>
-                <svg className={`lang-chevron${langOpen ? ' open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                <span className={`lang-chevron${langOpen ? ' open' : ''}`}>
+                  <ChevronDown size={12} strokeWidth={2.5} />
+                </span>
               </button>
 
               {langOpen && (
@@ -151,11 +182,16 @@ export default function Layout() {
                       aria-selected={i18n.language === l.code}
                     >
                       <span className="lang-flag">{l.flag}</span>
-                      <span>{l.label}</span>
+                      <span className="lang-option-name">{l.name}</span>
                     </button>
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Globe icon for aesthetics */}
+            <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+              <Globe size={16} />
             </div>
           </div>
         </div>

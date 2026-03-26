@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  getCurrenciesPaginated,
-  createCurrency,
-  updateCurrency,
-  deleteCurrency,
-  type Currency,
-  type CreateCurrencyDto,
+  DollarSign, Plus, Search, Pencil, Trash2, X, Star, Loader2, Globe,
+} from 'lucide-react';
+import {
+  getCurrenciesPaginated, getCommonCurrencies,
+  createCurrency, updateCurrency, deleteCurrency,
+  type Currency, type CreateCurrencyDto,
 } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Pagination } from './UsersPage';
 
-const emptyForm: CreateCurrencyDto = { code: '', symbol: '', country: '' };
+const emptyForm: CreateCurrencyDto = { code: '', symbol: '', country: '', is_main: false, currency_change: 1 };
+const emptyRate = { from: 1, to: 1 };
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
 export default function CurrenciesPage() {
@@ -23,14 +25,23 @@ export default function CurrenciesPage() {
   const [search, setSearch] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<CreateCurrencyDto>(emptyForm);
+  const [rate, setRate] = useState(emptyRate);
   const [editId, setEditId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [confirmId, setConfirmId] = useState<number | null>(null);
+  const [mainCurrency, setMainCurrency] = useState<Currency | null>(null);
   const { t } = useTranslation();
 
-  const closeModal = () => { setShowModal(false); setForm(emptyForm); setEditId(null); };
+  const closeModal = () => { setShowModal(false); setForm(emptyForm); setRate(emptyRate); setEditId(null); };
+
+  const loadMainCurrency = async () => {
+    try {
+      const all = await getCommonCurrencies();
+      setMainCurrency(all.find(c => c.is_main) ?? null);
+    } catch { /* silent */ }
+  };
 
   const load = async (p = page, pp = perPage, s = search) => {
     setFetching(true);
@@ -47,6 +58,7 @@ export default function CurrenciesPage() {
     }
   };
 
+  useEffect(() => { loadMainCurrency(); }, []);
   useEffect(() => { load(page, perPage, search); }, [page, perPage]);
 
   const handleSearchChange = (value: string) => {
@@ -56,7 +68,8 @@ export default function CurrenciesPage() {
   };
 
   const openEdit = (c: Currency) => {
-    setForm({ code: c.code, symbol: c.symbol, country: c.country });
+    setForm({ code: c.code, symbol: c.symbol, country: c.country, is_main: c.is_main, currency_change: parseFloat(c.currency_change) });
+    setRate({ from: 1, to: parseFloat(c.currency_change) || 1 });
     setEditId(c.id);
     setShowModal(true);
   };
@@ -64,16 +77,18 @@ export default function CurrenciesPage() {
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     setLoading(true);
+    const currency_change = form.is_main ? 1 : parseFloat((rate.to / rate.from).toFixed(5));
+    const payload = { ...form, currency_change };
     try {
       if (editId !== null) {
-        await updateCurrency(editId, form);
+        await updateCurrency(editId, payload);
         toast.success(t('currencies.updated'));
       } else {
-        await createCurrency(form);
+        await createCurrency(payload);
         toast.success(t('currencies.created'));
       }
       closeModal();
-      await load();
+      await Promise.all([load(), loadMainCurrency()]);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : editId ? t('currencies.failedUpdate') : t('currencies.failedCreate'));
     } finally {
@@ -101,11 +116,11 @@ export default function CurrenciesPage() {
       </div>
 
       <div className="stats-bar">
-        <div className="stat-card" style={{ '--stat-accent': '#2563eb' } as React.CSSProperties}>
+        <div className="stat-card" style={{ '--stat-accent': 'var(--success)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('currencies.total')}</p>
-            <div className="stat-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <div className="stat-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+              <DollarSign size={20} strokeWidth={2} />
             </div>
           </div>
           <span className="stat-value">{total}</span>
@@ -114,26 +129,38 @@ export default function CurrenciesPage() {
 
       <div className="card">
         <div className="table-header">
-          <div><h3>{t('currencies.tableTitle')} <span>({total})</span></h3></div>
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
-            {t('currencies.newCurrency')}
-          </button>
+          <div className="table-header-left">
+            <h3>{t('currencies.tableTitle')}</h3>
+            <span className="table-header-sub">{total} {t('currencies.total').toLowerCase()}</span>
+          </div>
+          <div className="table-header-actions">
+            <button className="btn-primary" onClick={() => setShowModal(true)}>
+              <Plus size={15} />{t('currencies.newCurrency')}
+            </button>
+          </div>
         </div>
 
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)' }}>
-          <input
-            style={{ maxWidth: 360, height: 36 }}
-            placeholder={t('currencies.searchPlaceholder')}
-            value={search}
-            onChange={e => handleSearchChange(e.target.value)}
-          />
+        <div className="search-bar">
+          <div className="input-with-icon search-input">
+            <span className="input-icon"><Search size={14} /></span>
+            <input
+              placeholder={t('currencies.searchPlaceholder')}
+              value={search}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{ height: 36 }}
+            />
+          </div>
         </div>
 
         <div className="table-wrap">
           {fetching ? (
-            <div className="empty-state"><span>{t('currencies.loading')}</span></div>
+            <div className="loading-state">
+              <div className="spinner spinner-lg" />
+              <span>{t('currencies.loading')}</span>
+            </div>
           ) : currencies.length === 0 ? (
             <div className="empty-state">
+              <div className="empty-state-icon"><DollarSign size={22} /></div>
               <p>{search ? t('currencies.noResults') : t('currencies.noCurrencies')}</p>
               <span>{search ? t('currencies.noResultsHint') : t('currencies.noCurrenciesHint')}</span>
             </div>
@@ -145,22 +172,50 @@ export default function CurrenciesPage() {
                   <th>{t('currencies.colCode')}</th>
                   <th>{t('currencies.colSymbol')}</th>
                   <th>{t('currencies.colCountry')}</th>
+                  <th>{t('currencies.colRate')}</th>
+                  <th>{t('currencies.colMain')}</th>
                   <th>{t('currencies.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {currencies.map((c, i) => (
                   <tr key={c.id}>
-                    <td data-label="#">{(page - 1) * perPage + i + 1}</td>
+                    <td data-label="#" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{(page - 1) * perPage + i + 1}</td>
                     <td data-label={t('currencies.colCode')}>
                       <span className="badge badge-blue">{c.code}</span>
                     </td>
-                    <td data-label={t('currencies.colSymbol')} style={{ fontWeight: 600 }}>{c.symbol}</td>
-                    <td data-label={t('currencies.colCountry')} style={{ color: 'var(--text-secondary)' }}>{c.country}</td>
+                    <td data-label={t('currencies.colSymbol')}>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{c.symbol}</span>
+                    </td>
+                    <td data-label={t('currencies.colCountry')}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+                        <Globe size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        {c.country}
+                      </span>
+                    </td>
+                    <td data-label={t('currencies.colRate')}>
+                      {c.is_main
+                        ? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 12 }}>—</span>
+                        : <span style={{ fontWeight: 600, fontSize: 13 }}>
+                            1 {mainCurrency?.code ?? '?'} = {parseFloat(c.currency_change).toLocaleString()} {c.code}
+                          </span>
+                      }
+                    </td>
+                    <td data-label={t('currencies.colMain')}>
+                      {c.is_main && (
+                        <span className="badge badge-green">
+                          <Star size={10} fill="currentColor" />{t('currencies.mainBadge')}
+                        </span>
+                      )}
+                    </td>
                     <td data-label={t('currencies.colActions')}>
                       <div className="table-actions">
-                        <button className="btn-secondary btn-sm" onClick={() => openEdit(c)}>{t('currencies.edit')}</button>
-                        <button className="btn-danger btn-sm" onClick={() => setConfirmId(c.id)}>{t('currencies.delete')}</button>
+                        <button className="btn-ghost btn-icon" onClick={() => openEdit(c)} title={t('currencies.edit')}>
+                          <Pencil size={14} />
+                        </button>
+                        <button className="btn-danger btn-icon" onClick={() => setConfirmId(c.id)} title={t('currencies.delete')}>
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -171,44 +226,30 @@ export default function CurrenciesPage() {
         </div>
 
         {!fetching && total > 0 && (
-          <div className="pagination">
-            <div className="pagination-info">
-              {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} / {total}
-            </div>
-            <div className="pagination-controls">
-              <div className="pagination-per-page">
-                <span>{t('groups.perPage')}</span>
-                <select value={perPage} onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }} style={{ width: 'auto', height: 30, padding: '0 24px 0 8px', fontSize: 12 }}>
-                  {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-              <div className="pagination-pages">
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(1)}>«</button>
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{t('groups.prev')}</button>
-                {Array.from({ length: lastPage }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === lastPage || Math.abs(p - page) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, i, arr) => {
-                    if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
-                    acc.push(p); return acc;
-                  }, [])
-                  .map((p, i) => p === '…'
-                    ? <span key={`e-${i}`} className="pagination-ellipsis">…</span>
-                    : <button key={p} className={`btn-sm pagination-btn${page === p ? ' active' : ' btn-ghost'}`} onClick={() => setPage(p as number)}>{p}</button>
-                  )}
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}>{t('groups.next')}</button>
-                <button className="btn-ghost btn-sm pagination-btn" disabled={page >= lastPage} onClick={() => setPage(lastPage)}>»</button>
-              </div>
-            </div>
-          </div>
+          <Pagination
+            page={page} lastPage={lastPage} perPage={perPage} total={total}
+            perPageOptions={PER_PAGE_OPTIONS}
+            showingFrom={(page - 1) * perPage + 1}
+            showingTo={Math.min(page * perPage, total)}
+            onPage={setPage}
+            onPerPage={n => { setPerPage(n); setPage(1); }}
+            perPageLabel={t('groups.perPage')}
+          />
         )}
       </div>
 
+      {/* Create / Edit Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal">
             <div className="modal-header">
-              <h3>{editId ? t('currencies.modalEditTitle') : t('currencies.modalTitle')}</h3>
-              <button className="btn-ghost btn-icon" onClick={closeModal}>✕</button>
+              <div className="modal-header-title">
+                <div className="modal-header-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+                  <DollarSign size={18} strokeWidth={2} />
+                </div>
+                <h3>{editId ? t('currencies.modalEditTitle') : t('currencies.modalTitle')}</h3>
+              </div>
+              <button className="btn-ghost btn-icon" onClick={closeModal}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -232,20 +273,75 @@ export default function CurrenciesPage() {
                     />
                   </div>
                 </div>
+
                 <div className="form-group">
                   <label>{t('currencies.countryLabel')}</label>
-                  <input
-                    placeholder={t('currencies.countryPlaceholder')}
-                    value={form.country}
-                    onChange={e => setForm({ ...form, country: e.target.value })}
-                    required
-                  />
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Globe size={14} /></span>
+                    <input
+                      placeholder={t('currencies.countryPlaceholder')}
+                      value={form.country}
+                      onChange={e => setForm({ ...form, country: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Rate */}
+                <div className="form-group">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ marginBottom: 0 }}>{t('currencies.rateLabel')}</label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 400, fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        style={{ width: 14, height: 14 }}
+                        checked={!!form.is_main}
+                        onChange={e => {
+                          setForm({ ...form, is_main: e.target.checked });
+                          if (e.target.checked) setRate({ from: 1, to: 1 });
+                        }}
+                      />
+                      <Star size={12} />
+                      {t('currencies.isMainCheck')}
+                    </label>
+                  </div>
+                  <div className="rate-row">
+                    <div className="rate-col">
+                      <input
+                        type="number" min="0.00001" step="any"
+                        value={rate.from}
+                        disabled={!!form.is_main}
+                        onChange={e => setRate(r => ({ ...r, from: parseFloat(e.target.value) || 1 }))}
+                        style={{ flex: 1 }}
+                      />
+                      <span className="rate-code">{mainCurrency?.code ?? t('currencies.mainCurrencyCode')}</span>
+                    </div>
+                    <span className="rate-row-eq">=</span>
+                    <div className="rate-col">
+                      <input
+                        type="number" min="0.00001" step="any"
+                        value={rate.to}
+                        disabled={!!form.is_main}
+                        onChange={e => setRate(r => ({ ...r, to: parseFloat(e.target.value) || 1 }))}
+                        style={{ flex: 1 }}
+                      />
+                      <span className="rate-code">{form.code || t('currencies.thisCurrencyCode')}</span>
+                    </div>
+                  </div>
+                  {!form.is_main && rate.from > 0 && (
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                      {t('currencies.rateResult', { rate: (rate.to / rate.from).toFixed(5), code: form.code || '?' })}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={closeModal}>{t('currencies.cancel')}</button>
                 <button type="submit" className="btn-primary" disabled={loading}>
-                  {loading ? t('currencies.saving') : editId ? t('currencies.saveChanges') : t('currencies.createCurrency')}
+                  {loading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />{t('currencies.saving')}</>
+                    : editId ? t('currencies.saveChanges') : <><Plus size={14} />{t('currencies.createCurrency')}</>
+                  }
                 </button>
               </div>
             </form>

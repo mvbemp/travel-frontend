@@ -27,7 +27,7 @@ function App() {
               </Route>
               <Route path="/groups" element={<GroupsPage />} />
               <Route path="/groups/:id" element={<GroupDetailPage />} />
-              <Route path="/" element={<Navigate to="/users" replace />} />
+              <Route path="/" element={<Navigate to="/groups" replace />} />
             </Route>
           </Route>
         </Routes>

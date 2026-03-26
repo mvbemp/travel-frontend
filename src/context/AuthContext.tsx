@@ -13,6 +13,7 @@ interface AuthContextType {
   token: string | null;
   user: JwtUser | null;
   isAdmin: boolean;
+  initializing: boolean;
   setToken: (token: string | null) => void;
   logout: () => void;
 }
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return t ? parseJwt(t) : null;
     }
   );
+  const [initializing, setInitializing] = useState(() => !!localStorage.getItem('token'));
 
   const isAdmin = user?.type === 'admin' || user?.type === 'super_admin';
 
@@ -55,14 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => setToken(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) { setInitializing(false); return; }
     getMe()
       .then((data: JwtUser) => setUser(data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setInitializing(false));
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ token, user, isAdmin, setToken, logout }}>
+    <AuthContext.Provider value={{ token, user, isAdmin, initializing, setToken, logout }}>
       {children}
     </AuthContext.Provider>
   );

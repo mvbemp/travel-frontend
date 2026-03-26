@@ -40,6 +40,9 @@ export const updateMember = (groupId: string | number, memberId: string | number
 export const deleteMember = (groupId: string | number, memberId: string | number) =>
   apiFetch(`/groups/${groupId}/members/${memberId}`, { method: 'DELETE' });
 
+export const getDeletedMembers = (groupId: string | number) =>
+  apiFetch(`/groups/${groupId}/members/deleted`);
+
 export const addGroupExpense = (groupId: string | number, data: { expense_id: number; value: number }) =>
   apiFetch(`/groups/${groupId}/expenses`, { method: 'POST', body: JSON.stringify(data) });
 export const deleteGroupExpense = (groupId: string | number, groupExpenseId: number) =>
