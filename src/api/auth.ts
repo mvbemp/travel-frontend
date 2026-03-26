@@ -10,3 +10,10 @@ export function login(email: string, password: string) {
 export function getMe() {
   return apiFetch('/auth/me');
 }
+
+export function updateProfile(data: { email?: string; password?: string }) {
+  return apiFetch('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}

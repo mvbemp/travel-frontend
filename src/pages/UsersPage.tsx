@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import {
-  Users, ShieldCheck, User, Plus, Search, Trash2,
+  Users, ShieldCheck, User, Plus, Search, Trash2, Pencil,
   X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Mail, Phone, Lock, Loader2,
 } from 'lucide-react';
-import { getUsers, createUser, deleteUser, type CreateUserDto } from '../api/users';
+import { getUsers, createUser, updateUser, deleteUser, type CreateUserDto } from '../api/users';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 function formatPhone(raw: string): string {
@@ -21,6 +21,7 @@ function formatPhone(raw: string): string {
 }
 
 const emptyForm: CreateUserDto = { email: '', full_name: '', password: '', type: 'user', phone_number: '' };
+type EditForm = Partial<CreateUserDto> & { password?: string };
 const PER_PAGE_OPTIONS = [10, 15, 20, 50];
 
 export default function UsersPage() {
@@ -35,10 +36,18 @@ export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({});
+  const [editLoading, setEditLoading] = useState(false);
   const { t } = useTranslation();
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closeModal = () => { setShowModal(false); setForm(emptyForm); };
+  const openEdit = (u: any) => {
+    setEditId(u.id);
+    setEditForm({ email: u.email, full_name: u.full_name, phone_number: u.phone_number, type: u.type, password: '' });
+  };
+  const closeEdit = () => { setEditId(null); setEditForm({}); };
 
   const load = async (p = page, pp = perPage, s = search) => {
     setFetching(true);
@@ -89,6 +98,24 @@ export default function UsersPage() {
       toast.error(err instanceof Error ? err.message : t('users.failedDelete'));
     } finally {
       setConfirmId(null);
+    }
+  };
+
+  const handleEdit = async (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    if (!editId) return;
+    setEditLoading(true);
+    try {
+      const payload: EditForm = { ...editForm };
+      if (!payload.password) delete payload.password;
+      await updateUser(editId, payload);
+      closeEdit();
+      await load(page, perPage, search);
+      toast.success(t('users.updated'));
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : t('users.failedUpdate'));
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -223,13 +250,22 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td data-label={t('users.colActions')}>
-                      <button
-                        className="btn-danger btn-icon"
-                        onClick={() => setConfirmId(u.id)}
-                        title={t('users.delete')}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn-secondary btn-icon"
+                          onClick={() => openEdit(u)}
+                          title={t('users.edit')}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          className="btn-danger btn-icon"
+                          onClick={() => setConfirmId(u.id)}
+                          title={t('users.delete')}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -315,6 +351,77 @@ export default function UsersPage() {
                   {loading
                     ? <><Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />{t('users.creating')}</>
                     : <><Plus size={14} />{t('users.createUser')}</>
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editId && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeEdit()}>
+          <div className="modal">
+            <div className="modal-header">
+              <div className="modal-header-title">
+                <div className="modal-header-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                  <Pencil size={18} strokeWidth={2} />
+                </div>
+                <h3>{t('users.editModalTitle')}</h3>
+              </div>
+              <button className="btn-ghost btn-icon" onClick={closeEdit}><X size={16} /></button>
+            </div>
+            <form onSubmit={handleEdit}>
+              <div className="modal-body">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('users.fullName')}</label>
+                    <div className="input-with-icon">
+                      <span className="input-icon"><User size={14} /></span>
+                      <input placeholder={t('users.fullNamePlaceholder')} value={editForm.full_name ?? ''} onChange={e => setEditForm({ ...editForm, full_name: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>{t('users.role')}</label>
+                    <div className="input-with-icon">
+                      <span className="input-icon"><ShieldCheck size={14} /></span>
+                      <select value={editForm.type ?? 'user'} onChange={e => setEditForm({ ...editForm, type: e.target.value as 'admin' | 'user' })} style={{ paddingLeft: 36 }}>
+                        <option value="user">{t('users.roleUser')}</option>
+                        <option value="admin">{t('users.roleAdmin')}</option>
+                        <option value="super_admin">{t('users.roleSuperAdmin')}</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>{t('users.emailLabel')}</label>
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Mail size={14} /></span>
+                    <input type="email" placeholder="john@example.com" value={editForm.email ?? ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>{t('users.colPhone')}</label>
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Phone size={14} /></span>
+                    <input placeholder={t('users.phonePlaceholder')} value={editForm.phone_number ?? ''} onChange={e => setEditForm({ ...editForm, phone_number: formatPhone(e.target.value) })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>{t('users.newPasswordLabel')}</label>
+                  <div className="input-with-icon">
+                    <span className="input-icon"><Lock size={14} /></span>
+                    <input type="password" placeholder={t('users.newPasswordPlaceholder')} value={editForm.password ?? ''} onChange={e => setEditForm({ ...editForm, password: e.target.value })} minLength={5} />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={closeEdit}>{t('users.cancel')}</button>
+                <button type="submit" className="btn-primary" disabled={editLoading}>
+                  {editLoading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} />{t('users.saving')}</>
+                    : <><Pencil size={14} />{t('users.saveChanges')}</>
                   }
                 </button>
               </div>

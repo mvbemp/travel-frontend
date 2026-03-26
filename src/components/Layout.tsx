@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import {
   Users, DollarSign, Receipt, Map, LogOut, Menu, X,
-  ChevronDown, Plane, Globe,
+  ChevronDown, Plane, Globe, UserCircle,
 } from 'lucide-react';
 
 const LANGS = [
@@ -14,10 +14,11 @@ const LANGS = [
 ] as const;
 
 const PAGE_ICONS: Record<string, { Icon: React.ComponentType<{size?:number;strokeWidth?:number}>, bg: string, color: string }> = {
-  users:      { Icon: Users,      bg: 'var(--primary-light)',  color: 'var(--primary)' },
-  currencies: { Icon: DollarSign, bg: 'var(--success-light)',  color: 'var(--success)' },
-  expenses:   { Icon: Receipt,    bg: 'var(--warning-light)',  color: 'var(--warning)' },
-  groups:     { Icon: Map,        bg: 'var(--purple-light)',   color: 'var(--purple)' },
+  users:      { Icon: Users,       bg: 'var(--primary-light)',  color: 'var(--primary)' },
+  currencies: { Icon: DollarSign,  bg: 'var(--success-light)',  color: 'var(--success)' },
+  expenses:   { Icon: Receipt,     bg: 'var(--warning-light)',  color: 'var(--warning)' },
+  groups:     { Icon: Map,         bg: 'var(--purple-light)',   color: 'var(--purple)' },
+  profile:    { Icon: UserCircle,  bg: 'var(--info-light)',     color: 'var(--info)' },
 };
 
 function usePageMeta() {
@@ -28,6 +29,7 @@ function usePageMeta() {
   if (path.startsWith('/currencies')) return { key: 'currencies', label: t('nav.currencies') };
   if (path.startsWith('/expenses'))   return { key: 'expenses',   label: t('nav.expenses') };
   if (path.startsWith('/groups'))     return { key: 'groups',     label: t('nav.groups') };
+  if (path.startsWith('/profile'))    return { key: 'profile',    label: t('nav.profile') };
   return { key: 'groups', label: 'Travel' };
 }
 
@@ -69,6 +71,7 @@ export default function Layout() {
       { to: '/expenses',   label: t('nav.expenses'),   Icon: Receipt },
     ] : []),
     { to: '/groups', label: t('nav.groups'), Icon: Map },
+    { to: '/profile', label: t('nav.profile'), Icon: UserCircle },
   ];
 
   const initials = (user?.full_name ?? user?.email ?? 'U').slice(0, 2).toUpperCase();
