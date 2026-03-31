@@ -5,11 +5,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Flag, Users, DollarSign, ShoppingBag, TrendingUp,
   Calendar, User, Plus, Pencil, Trash2, Info, X, CheckCircle2, Zap,
-  CreditCard, Receipt, Loader2, BookOpen,
+  Receipt, Loader2, BookOpen, FileDown,
 } from 'lucide-react';
 import {
   getGroup, finishGroup, addMember, updateMember, deleteMember,
-  addGroupExpense, deleteGroupExpense, getDeletedMembers,
+  addGroupExpense, deleteGroupExpense, getDeletedMembers, downloadGroupReport,
 } from '../api/groups';
 import { getCommonCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -17,7 +17,7 @@ import MemberFormModal, { type MemberForm } from '../components/MemberFormModal'
 import { getExpenses, type Expense } from '../api/common';
 import { useAuth } from '../context/AuthContext';
 
-const emptyMemberForm: MemberForm = { name: '', passport: '', passport_type: undefined, currency_id: undefined, payment: undefined };
+const emptyMemberForm: MemberForm = { first_name: '', last_name: '', pax_type: 'A', nationality: undefined, passport: '', date_of_birth: undefined, gender: undefined, date_of_expiry: undefined, comment: undefined, currency_id: undefined, payment: undefined };
 
 export default function GroupDetailPage() {
   const authUser = useAuth();
@@ -25,10 +25,10 @@ export default function GroupDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const PASSPORT_LABELS: Record<string, string> = {
-    green_passport: t('groupDetail.passportGreen'),
-    red_passport:   t('groupDetail.passportRed'),
-    id_card:        t('groupDetail.passportId'),
+  const PAX_TYPE_LABELS: Record<string, string> = {
+    A: t('groupDetail.paxA'),
+    C: t('groupDetail.paxC'),
+    I: t('groupDetail.paxI'),
   };
 
   const [group, setGroup] = useState<any | null>(null);
@@ -63,6 +63,19 @@ export default function GroupDetailPage() {
       const data = await getDeletedMembers(id!);
       setDeletedMembers(Array.isArray(data) ? data : []);
     } catch { /* silent */ } finally { setFetchingDeleted(false); }
+  };
+
+  const [downloadingReport, setDownloadingReport] = useState(false);
+
+  const handleDownloadReport = async () => {
+    setDownloadingReport(true);
+    try {
+      await downloadGroupReport(id!, `${group?.name ?? 'report'}.xlsx`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : t('groupDetail.failedReport'));
+    } finally {
+      setDownloadingReport(false);
+    }
   };
 
   const [confirmFinish, setConfirmFinish] = useState(false);
@@ -101,9 +114,14 @@ export default function GroupDetailPage() {
     e.preventDefault();
     setAddingMember(true);
     try {
-      const payload: any = { name: memberForm.name };
+      const payload: any = { first_name: memberForm.first_name, last_name: memberForm.last_name };
+      if (memberForm.pax_type)       payload.pax_type      = memberForm.pax_type;
+      if (memberForm.nationality)    payload.nationality   = memberForm.nationality;
       if (memberForm.passport)       payload.passport      = memberForm.passport;
-      if (memberForm.passport_type)  payload.passport_type = memberForm.passport_type;
+      if (memberForm.date_of_birth)  payload.date_of_birth = memberForm.date_of_birth;
+      if (memberForm.gender)         payload.gender        = memberForm.gender;
+      if (memberForm.date_of_expiry) payload.date_of_expiry = memberForm.date_of_expiry;
+      if (memberForm.comment)        payload.comment       = memberForm.comment;
       if (memberForm.currency_id)    payload.currency_id   = memberForm.currency_id;
       if (memberForm.payment !== undefined) payload.payment = Number(memberForm.payment);
       const newMember = await addMember(id!, payload);
@@ -118,7 +136,19 @@ export default function GroupDetailPage() {
 
   const startEdit = (m: any) => {
     setEditingMember(m);
-    setEditMemberForm({ name: m.name, passport: m.passport ?? '', passport_type: m.passport_type ?? undefined, currency_id: m.currency_id ?? undefined, payment: m.payment ?? undefined });
+    setEditMemberForm({
+      first_name: m.first_name ?? '',
+      last_name: m.last_name ?? '',
+      pax_type: m.pax_type ?? undefined,
+      nationality: m.nationality ?? undefined,
+      passport: m.passport ?? '',
+      date_of_birth: m.date_of_birth ? m.date_of_birth.slice(0, 10) : undefined,
+      gender: m.gender ?? undefined,
+      date_of_expiry: m.date_of_expiry ? m.date_of_expiry.slice(0, 10) : undefined,
+      comment: m.comment ?? undefined,
+      currency_id: m.currency_id ?? undefined,
+      payment: m.payment ?? undefined,
+    });
   };
 
   const handleEditMember = async (e: { preventDefault(): void }) => {
@@ -126,10 +156,15 @@ export default function GroupDetailPage() {
     if (!editingMember) return;
     setSavingMember(true);
     try {
-      const payload: any = { name: editMemberForm.name };
+      const payload: any = { first_name: editMemberForm.first_name, last_name: editMemberForm.last_name };
+      if (editMemberForm.pax_type)       payload.pax_type      = editMemberForm.pax_type;
+      if (editMemberForm.nationality)    payload.nationality   = editMemberForm.nationality;
       if (editMemberForm.passport !== undefined)  payload.passport      = editMemberForm.passport;
-      if (editMemberForm.passport_type)           payload.passport_type = editMemberForm.passport_type;
-      if (editMemberForm.currency_id)             payload.currency_id   = editMemberForm.currency_id;
+      if (editMemberForm.date_of_birth)  payload.date_of_birth = editMemberForm.date_of_birth;
+      if (editMemberForm.gender)         payload.gender        = editMemberForm.gender;
+      if (editMemberForm.date_of_expiry) payload.date_of_expiry = editMemberForm.date_of_expiry;
+      if (editMemberForm.comment)        payload.comment       = editMemberForm.comment;
+      if (editMemberForm.currency_id)    payload.currency_id   = editMemberForm.currency_id;
       if (editMemberForm.payment !== undefined)   payload.payment       = Number(editMemberForm.payment);
       const updated = await updateMember(id!, editingMember.id, payload);
       setGroup((prev: any) => ({
@@ -294,6 +329,10 @@ export default function GroupDetailPage() {
             )}
           </div>
         </div>
+        <button className="btn-secondary btn-sm" style={{ flexShrink: 0 }} onClick={handleDownloadReport} disabled={downloadingReport}>
+          {downloadingReport ? <Loader2 size={13} style={{ animation: 'spin 0.7s linear infinite' }} /> : <FileDown size={13} />}
+          {t('groupDetail.downloadReport')}
+        </button>
         {!group.is_finished && (
           <button className="btn-success btn-sm" style={{ flexShrink: 0 }} onClick={() => setConfirmFinish(true)}>
             <Flag size={13} />{t('groupDetail.finishGroup')}
@@ -458,9 +497,9 @@ export default function GroupDetailPage() {
                         <td data-label={t('groupDetail.colName')}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--purple-light)', color: 'var(--purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                              {m.name[0]?.toUpperCase()}
+                              {m.first_name?.[0]?.toUpperCase()}
                             </div>
-                            <span style={{ fontWeight: 600 }}>{m.name}</span>
+                            <span style={{ fontWeight: 600 }}>{m.first_name} {m.last_name}</span>
                           </div>
                         </td>
                         <td data-label={t('groupDetail.colPassport')}>
@@ -469,8 +508,8 @@ export default function GroupDetailPage() {
                           </span>
                         </td>
                         <td data-label={t('groupDetail.colType')}>
-                          {m.passport_type
-                            ? <span className="badge badge-blue"><CreditCard size={10} />{PASSPORT_LABELS[m.passport_type] ?? m.passport_type}</span>
+                          {m.pax_type
+                            ? <span className="badge badge-blue">{PAX_TYPE_LABELS[m.pax_type] ?? m.pax_type}</span>
                             : <span style={{ color: 'var(--text-muted)' }}>—</span>
                           }
                         </td>
@@ -544,7 +583,7 @@ export default function GroupDetailPage() {
                     <tr key={m.id} style={{ opacity: 0.6 }}>
                       <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
                       <td>
-                        <span style={{ fontWeight: 600, textDecoration: 'line-through', color: 'var(--text-secondary)' }}>{m.name}</span>
+                        <span style={{ fontWeight: 600, textDecoration: 'line-through', color: 'var(--text-secondary)' }}>{m.first_name} {m.last_name}</span>
                       </td>
                       <td>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
@@ -710,7 +749,7 @@ export default function GroupDetailPage() {
 
       {editingMember && (
         <MemberFormModal
-          title={t('groupDetail.editMemberTitle', { memberName: editingMember.name })}
+          title={t('groupDetail.editMemberTitle', { memberName: `${editingMember.first_name} ${editingMember.last_name}` })}
           form={editMemberForm}
           currencies={currencies}
           loading={savingMember}
@@ -740,14 +779,19 @@ export default function GroupDetailPage() {
                 <div className="modal-header-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
                   <Info size={18} strokeWidth={2} />
                 </div>
-                <h3>{infoMember.name}</h3>
+                <h3>{infoMember.first_name} {infoMember.last_name}</h3>
               </div>
               <button className="btn-ghost btn-icon" onClick={() => setInfoMember(null)}><X size={16} /></button>
             </div>
             <div className="modal-body">
               {[
                 [t('groupDetail.colPassport'), infoMember.passport || '—'],
-                [t('groupDetail.colType'), infoMember.passport_type ? PASSPORT_LABELS[infoMember.passport_type] : '—'],
+                [t('groupDetail.colType'), infoMember.pax_type ? (PAX_TYPE_LABELS[infoMember.pax_type] ?? infoMember.pax_type) : '—'],
+                [t('groupDetail.colGender'), infoMember.gender || '—'],
+                [t('groupDetail.colNationality'), infoMember.nationality || '—'],
+                [t('groupDetail.colDateOfBirth'), infoMember.date_of_birth ? new Date(infoMember.date_of_birth).toLocaleDateString() : '—'],
+                [t('groupDetail.colDateOfExpiry'), infoMember.date_of_expiry ? new Date(infoMember.date_of_expiry).toLocaleDateString() : '—'],
+                [t('groupDetail.colComment'), infoMember.comment || '—'],
                 [t('groupDetail.colPayment'),
                   infoMember.payment != null
                     ? `${mainCurrency?.symbol ?? ''}${Number(infoMember.payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainCurrency?.code ?? ''}`
@@ -784,7 +828,7 @@ export default function GroupDetailPage() {
       {confirmDeleteMember && (
         <ConfirmDialog
           title={t('groupDetail.confirmRemoveMemberTitle')}
-          message={t('groupDetail.confirmRemoveMemberMessage', { name: confirmDeleteMember.name })}
+          message={t('groupDetail.confirmRemoveMemberMessage', { name: `${confirmDeleteMember.first_name} ${confirmDeleteMember.last_name}` })}
           confirmLabel={t('groupDetail.delete')}
           danger
           onConfirm={handleDeleteMember}

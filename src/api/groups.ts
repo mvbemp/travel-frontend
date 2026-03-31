@@ -7,9 +7,16 @@ export interface CreateGroupDto {
 }
 
 export interface AddMemberDto {
-  name: string;
+  first_name: string;
+  last_name: string;
+  pax_type?: 'A' | 'C' | 'I';
+  nationality?: string;
   passport?: string;
-  passport_type?: 'green_passport' | 'red_passport' | 'id_card';
+  date_of_birth?: string;
+  gender?: 'male' | 'female';
+  date_of_expiry?: string;
+  comment?: string;
+  currency_id?: number;
   payment?: number;
 }
 
@@ -26,12 +33,7 @@ export const deleteGroup = (id: string) =>
   apiFetch(`/groups/${id}`, { method: 'DELETE' });
 export const finishGroup = (id: string) =>
   apiFetch(`/groups/${id}/finish`, { method: 'PATCH' });
-export interface UpdateMemberDto {
-  name?: string;
-  passport?: string;
-  passport_type?: 'green_passport' | 'red_passport' | 'id_card';
-  payment?: number;
-}
+export type UpdateMemberDto = Partial<AddMemberDto>;
 
 export const addMember = (groupId: string | number, data: AddMemberDto) =>
   apiFetch(`/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify(data) });
@@ -42,6 +44,26 @@ export const deleteMember = (groupId: string | number, memberId: string | number
 
 export const getDeletedMembers = (groupId: string | number) =>
   apiFetch(`/groups/${groupId}/members/deleted`);
+
+export const downloadGroupReport = async (groupId: string | number, filename: string) => {
+  const token = localStorage.getItem('token');
+  const lang = localStorage.getItem('lang') ?? 'uz';
+  const BASE_URL = import.meta.env.VITE_API_URL ?? '';
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/report`, {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : '',
+      'Accept-Language': lang,
+    },
+  });
+  if (!res.ok) throw new Error(`Failed to download report: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 export const addGroupExpense = (groupId: string | number, data: { expense_id: number; value: number }) =>
   apiFetch(`/groups/${groupId}/expenses`, { method: 'POST', body: JSON.stringify(data) });
