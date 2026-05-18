@@ -65,3 +65,6 @@ desktop.ini
 *.local
 .vercel
 .netlify
+
+package-lock.json
+yarn.lock
