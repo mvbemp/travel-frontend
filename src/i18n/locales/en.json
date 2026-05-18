@@ -21,7 +21,9 @@
     "passwordError": "Password must be at least 6 characters",
     "signingIn": "Signing in…",
     "signIn": "Sign In →",
-    "failed": "Login failed"
+    "failed": "Login failed",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "users": {
     "pageTitle": "Users",
@@ -244,7 +246,16 @@
     "colDeletedAt": "Deleted at",
     "colCreatedBy": "Created by",
     "colCreatedAt": "Created at",
-    "colRate": "Rate"
+    "colRate": "Rate",
+    "infoSectionPersonal": "Personal",
+    "infoSectionDocument": "Travel document",
+    "infoSectionPayments": "Payments",
+    "infoSectionNotes": "Notes",
+    "infoSectionAudit": "Activity",
+    "paymentMainTotal": "Total in main currency",
+    "paymentBreakdown": "By currency",
+    "paymentNoPayments": "No payments recorded yet",
+    "close": "Close"
   },
   "member": {
     "firstName": "First Name *",
@@ -271,7 +282,12 @@
     "currency": "Currency",
     "payment": "Payment",
     "cancel": "Cancel",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "sectionIdentity": "Identity",
+    "sectionDocument": "Travel document",
+    "sectionPayment": "Initial payment",
+    "sectionNotes": "Notes",
+    "editPaymentHint": "Personal info only. Use the Payments section below to add, edit or remove payments."
   },
   "currencies": {
     "pageTitle": "Currencies",
@@ -361,6 +377,27 @@
     "failedDelete": "Failed to delete expense",
     "failedLoad": "Failed to load expenses"
   },
+  "payments": {
+    "sectionTitle": "Payments",
+    "add": "Add payment",
+    "addTitle": "Add Payment",
+    "edit": "Edit",
+    "editTitle": "Edit Payment",
+    "delete": "Delete",
+    "loading": "Loading payments…",
+    "empty": "No payments yet",
+    "added": "Payment added",
+    "updated": "Payment updated",
+    "deleted": "Payment removed",
+    "failedAdd": "Failed to add payment",
+    "failedUpdate": "Failed to update payment",
+    "failedDelete": "Failed to remove payment",
+    "confirmDeleteTitle": "Remove Payment",
+    "confirmDeleteMessage": "Remove this payment? This action cannot be undone.",
+    "mainCurrency": "Main currency",
+    "rate": "Rate",
+    "sameAsMain": "Same as main currency"
+  },
   "confirm": {
     "cancel": "Cancel",
     "confirm": "Confirm"
@@ -369,5 +406,12 @@
     "uz": "UZ",
     "ru": "RU",
     "en": "EN"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "toLight": "Switch to light theme",
+    "toDark": "Switch to dark theme"
   }
 }

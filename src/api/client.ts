@@ -14,11 +14,11 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 401 && path !== '/auth/login') {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
-    const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `Request failed: ${res.status}`);
   }
 

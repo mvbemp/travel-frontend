@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { Plane, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Plane, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const { setToken } = useAuth();
   const navigate = useNavigate();
@@ -76,13 +77,23 @@ export default function LoginPage() {
             <div className="input-with-icon">
               <span className="input-icon"><Lock size={15} /></span>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder={t('login.passwordPlaceholder')}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onBlur={() => setTouched(p => ({ ...p, password: true }))}
                 autoComplete="current-password"
+                style={{ paddingRight: 36 }}
               />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(s => !s)}
+                aria-label={t(showPassword ? 'login.hidePassword' : 'login.showPassword')}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
             </div>
             {touched.password && !passwordValid && (
               <span className="field-error">{t('login.passwordError')}</span>
@@ -112,6 +123,23 @@ export default function LoginPage() {
 
       <style>{`
         .spin-icon { animation: spin 0.7s linear infinite; }
+        .password-toggle {
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: 0;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-muted);
+          cursor: pointer;
+          border-radius: 4px;
+        }
+        .password-toggle:hover { color: var(--text); }
+        .password-toggle:focus-visible { outline: 2px solid var(--primary, #6366f1); outline-offset: 1px; }
       `}</style>
     </div>
   );

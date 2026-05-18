@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, Flag, Users, DollarSign, ShoppingBag, TrendingUp,
   Calendar, User, Plus, Pencil, Trash2, Info, X, CheckCircle2, Zap,
-  Receipt, Loader2, BookOpen, FileDown,
+  Receipt, Loader2, BookOpen, FileDown, Globe, CreditCard, MessageSquare,
 } from 'lucide-react';
 import {
   getGroup, finishGroup, addMember, updateMember, deleteMember,
@@ -14,6 +14,7 @@ import {
 import { getCommonCurrencies, type Currency } from '../api/currencies';
 import ConfirmDialog from '../components/ConfirmDialog';
 import MemberFormModal, { type MemberForm } from '../components/MemberFormModal';
+import MemberPaymentsSection, { type PaymentRow } from '../components/MemberPaymentsSection';
 import { getExpenses, type Expense } from '../api/common';
 import { useAuth } from '../context/AuthContext';
 
@@ -146,8 +147,8 @@ export default function GroupDetailPage() {
       gender: m.gender ?? undefined,
       date_of_expiry: m.date_of_expiry ? m.date_of_expiry.slice(0, 10) : undefined,
       comment: m.comment ?? undefined,
-      currency_id: m.currency_id ?? undefined,
-      payment: m.payment ?? undefined,
+      currency_id: undefined,
+      payment: undefined,
     });
   };
 
@@ -164,18 +165,27 @@ export default function GroupDetailPage() {
       if (editMemberForm.gender)         payload.gender        = editMemberForm.gender;
       if (editMemberForm.date_of_expiry) payload.date_of_expiry = editMemberForm.date_of_expiry;
       if (editMemberForm.comment)        payload.comment       = editMemberForm.comment;
-      if (editMemberForm.currency_id)    payload.currency_id   = editMemberForm.currency_id;
-      if (editMemberForm.payment !== undefined)   payload.payment       = Number(editMemberForm.payment);
       const updated = await updateMember(id!, editingMember.id, payload);
       setGroup((prev: any) => ({
         ...prev,
-        groupMember: prev.groupMember.map((m: any) => m.id === editingMember.id ? updated : m),
+        groupMember: prev.groupMember.map((m: any) =>
+          m.id === editingMember.id ? { ...m, ...updated, payments: m.payments } : m,
+        ),
       }));
       setEditingMember(null);
       toast.success(t('groupDetail.memberUpdated'));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t('groupDetail.failedUpdateMember'));
     } finally { setSavingMember(false); }
+  };
+
+  const handlePaymentsChange = (memberId: number, payments: PaymentRow[]) => {
+    setGroup((prev: any) => ({
+      ...prev,
+      groupMember: prev.groupMember.map((m: any) =>
+        m.id === memberId ? { ...m, payments } : m,
+      ),
+    }));
   };
 
   const selectedExpense = allExpenses.find(e => e.id === expenseId);
@@ -254,16 +264,48 @@ export default function GroupDetailPage() {
 
   const members: any[] = group.groupMember ?? [];
   const mainCurrency = currencies.find(c => c.is_main);
-  const totalPaymentInMain = members.reduce((sum: number, m: any) => sum + (Number(m.payment) || 0), 0);
 
-  const paymentsByCurrency = Object.values(
-    members.reduce((acc: Record<string, { symbol: string; code: string; total: number }>, m: any) => {
-      const code = m.currency?.code ?? 'USD';
-      const symbol = m.currency?.symbol ?? '$';
-      if (!acc[code]) acc[code] = { code, symbol, total: 0 };
-      acc[code].total += Number(m.payment) || 0;
-      return acc;
-    }, {})
+  const memberTotal = (m: any): number =>
+    Array.isArray(m.payments)
+      ? m.payments.reduce((s: number, p: any) => s + (Number(p.payment) || 0), 0)
+      : Number(m.payment) || 0;
+
+  // Prefer the server-aggregated totals (they include each payment's stored
+  // exchange rate and main_currency_id), fall back to client aggregation.
+  const serverTotals = group.payment_totals as
+    | {
+        by_currency: { currency_id: number | null; code: string; symbol: string; total: number }[];
+        main_currency_total: { currency_id: number | null; code: string | null; symbol: string | null; total: number };
+      }
+    | undefined;
+
+  const totalPaymentInMain =
+    serverTotals?.main_currency_total?.total ??
+    members.reduce((sum: number, m: any) => sum + memberTotal(m), 0);
+
+  const mainTotalSymbol = serverTotals?.main_currency_total?.symbol ?? mainCurrency?.symbol ?? '';
+  const mainTotalCode = serverTotals?.main_currency_total?.code ?? mainCurrency?.code ?? '';
+
+  const paymentsByCurrency = (
+    serverTotals?.by_currency ??
+    (Object.values(
+      members.reduce((acc: Record<string, { symbol: string; code: string; total: number }>, m: any) => {
+        const allPayments: any[] = Array.isArray(m.payments) ? m.payments : [];
+        if (allPayments.length === 0) {
+          const code = mainCurrency?.code ?? 'USD';
+          const symbol = mainCurrency?.symbol ?? '$';
+          if (!acc[code]) acc[code] = { code, symbol, total: 0 };
+          return acc;
+        }
+        for (const p of allPayments) {
+          const code = p.currency?.code ?? mainCurrency?.code ?? 'USD';
+          const symbol = p.currency?.symbol ?? mainCurrency?.symbol ?? '$';
+          if (!acc[code]) acc[code] = { code, symbol, total: 0 };
+          acc[code].total += Number(p.original_payment) || 0;
+        }
+        return acc;
+      }, {}),
+    ) as { code: string; symbol: string; total: number }[])
   ) as { code: string; symbol: string; total: number }[];
 
   const expensesByCurrency = Object.values(
@@ -341,7 +383,7 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="stats-bar" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+      <div className="stats-bar">
         <div className="stat-card" style={{ '--stat-accent': 'var(--purple)' } as React.CSSProperties}>
           <div className="stat-card-head">
             <p className="stat-label">{t('groupDetail.members')}</p>
@@ -364,12 +406,24 @@ export default function GroupDetailPage() {
               <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-muted)' }}>—</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {mainCurrency && (
+                {(mainTotalSymbol || mainTotalCode) && (
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                     <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-                      {mainCurrency.symbol}{totalPaymentInMain.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      {mainTotalSymbol}{totalPaymentInMain.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{mainCurrency.code}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{mainTotalCode}</span>
+                  </div>
+                )}
+                {paymentsByCurrency.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 4, paddingTop: 4, borderTop: '1px dashed var(--border)' }}>
+                    {paymentsByCurrency.map(({ code, symbol, total }) => (
+                      <div key={code || 'unknown'} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {symbol}{Number(total).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>{code}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -515,13 +569,17 @@ export default function GroupDetailPage() {
                         </td>
                         <td data-label={t('groupDetail.colPayment')}>
                           <div style={{ fontWeight: 600 }}>
-                            {m.payment != null
-                              ? `${mainCurrency?.symbol ?? ''}${Number(m.payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainCurrency?.code ?? ''}`
-                              : '—'}
+                            {`${mainTotalSymbol}${memberTotal(m).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainTotalCode}`}
                           </div>
-                          {m.currency && !m.currency.is_main && m.original_payment != null && (
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                              {t('groupDetail.paidIn')} {m.currency.symbol}{Number(m.original_payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} {m.currency.code}
+                          {Array.isArray(m.payments_by_currency) && m.payments_by_currency.length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {m.payments_by_currency
+                                .filter((pc: any) => pc.code !== mainTotalCode)
+                                .map((pc: any) => (
+                                  <span key={pc.currency_id ?? pc.code}>
+                                    {pc.symbol}{Number(pc.total).toLocaleString(undefined, { maximumFractionDigits: 2 })} {pc.code}
+                                  </span>
+                                ))}
                             </div>
                           )}
                         </td>
@@ -545,12 +603,24 @@ export default function GroupDetailPage() {
               )}
             </div>
             {members.length > 0 && (
-              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{t('groupDetail.totalPaymentLabel')}</span>
-                <span style={{ fontWeight: 700, color: 'var(--text)' }}>
-                  {mainCurrency?.symbol}{totalPaymentInMain.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: 4 }}>{mainCurrency?.code}</span>
-                </span>
+              <div className="detail-totals">
+                {paymentsByCurrency.length > 0 && (
+                  <div className="detail-totals-currencies">
+                    {paymentsByCurrency.map(({ code, symbol, total }) => (
+                      <span key={code || 'unknown'} style={{ fontWeight: 600 }}>
+                        {symbol}{Number(total).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: 4 }}>{code}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="detail-totals-grand">
+                  <span className="detail-totals-grand-label">{t('groupDetail.totalPaymentLabel')}</span>
+                  <span>
+                    {mainTotalSymbol}{totalPaymentInMain.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: 4 }}>{mainTotalCode}</span>
+                  </span>
+                </div>
               </div>
             )}
           </>
@@ -581,26 +651,19 @@ export default function GroupDetailPage() {
                 <tbody>
                   {deletedMembers.map((m: any, i: number) => (
                     <tr key={m.id} style={{ opacity: 0.6 }}>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
-                      <td>
+                      <td data-label={t('groupDetail.colNo')} style={{ color: 'var(--text-muted)', fontSize: 12 }}>{i + 1}</td>
+                      <td data-label={t('groupDetail.colName')}>
                         <span style={{ fontWeight: 600, textDecoration: 'line-through', color: 'var(--text-secondary)' }}>{m.first_name} {m.last_name}</span>
                       </td>
-                      <td>
+                      <td data-label={t('groupDetail.colPayment')}>
                         <div style={{ fontWeight: 500, fontSize: 13 }}>
-                          {m.payment != null
-                            ? `${mainCurrency?.symbol ?? ''}${Number(m.payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainCurrency?.code ?? ''}`
-                            : '—'}
+                          {`${mainCurrency?.symbol ?? ''}${memberTotal(m).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainCurrency?.code ?? ''}`}
                         </div>
-                        {m.currency && !m.currency.is_main && m.original_payment != null && (
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {t('groupDetail.paidIn')} {m.currency.symbol}{Number(m.original_payment).toLocaleString()} {m.currency.code}
-                          </div>
-                        )}
                       </td>
-                      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      <td data-label={t('groupDetail.colDeletedBy')} style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                         {m.deleter ? m.deleter.full_name : '—'}
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      <td data-label={t('groupDetail.colDeletedAt')} style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {new Date(m.updated_at).toLocaleString()}
                       </td>
                       <td>
@@ -757,6 +820,16 @@ export default function GroupDetailPage() {
           onSubmit={handleEditMember}
           onChange={setEditMemberForm}
           onClose={() => setEditingMember(null)}
+          disablePayment
+          paymentsSection={
+            <MemberPaymentsSection
+              groupId={id!}
+              memberId={editingMember.id}
+              currencies={currencies}
+              initialPayments={editingMember.payments ?? []}
+              onChange={(payments) => handlePaymentsChange(editingMember.id, payments)}
+            />
+          }
         />
       )}
 
@@ -771,59 +844,194 @@ export default function GroupDetailPage() {
       )}
 
       {/* Info Modal */}
-      {infoMember && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setInfoMember(null)}>
-          <div className="modal">
-            <div className="modal-header">
-              <div className="modal-header-title">
-                <div className="modal-header-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                  <Info size={18} strokeWidth={2} />
+      {infoMember && (() => {
+        const memberMainTotal = memberTotal(infoMember);
+        const breakdown: { code: string; symbol: string; total: number }[] = Array.isArray(infoMember.payments_by_currency)
+          ? infoMember.payments_by_currency.map((pc: any) => ({
+              code: pc.code ?? mainTotalCode ?? '',
+              symbol: pc.symbol ?? mainTotalSymbol ?? '',
+              total: Number(pc.total) || 0,
+            }))
+          : Array.isArray(infoMember.payments)
+            ? (Object.values(
+                (infoMember.payments as any[]).reduce((acc: Record<string, { code: string; symbol: string; total: number }>, p: any) => {
+                  const code = p.currency?.code ?? mainTotalCode ?? '';
+                  const symbol = p.currency?.symbol ?? mainTotalSymbol ?? '';
+                  if (!acc[code]) acc[code] = { code, symbol, total: 0 };
+                  acc[code].total += Number(p.original_payment) || 0;
+                  return acc;
+                }, {})
+              ) as { code: string; symbol: string; total: number }[])
+            : [];
+
+        const hasAnyPayments = breakdown.some(b => b.total > 0) || memberMainTotal > 0;
+        const initial = (infoMember.first_name?.[0] ?? '?').toUpperCase();
+        const paxLabel = infoMember.pax_type
+          ? (PAX_TYPE_LABELS[infoMember.pax_type] ?? infoMember.pax_type)
+          : null;
+        const genderLabel = infoMember.gender
+          ? (infoMember.gender === 'male' ? t('member.genderMale') : t('member.genderFemale'))
+          : null;
+
+        const personalRows: [string, React.ReactNode, boolean?][] = [
+          [t('groupDetail.colNationality'), infoMember.nationality || '—', !infoMember.nationality],
+          [t('groupDetail.colDateOfBirth'), infoMember.date_of_birth ? new Date(infoMember.date_of_birth).toLocaleDateString() : '—', !infoMember.date_of_birth],
+          [t('groupDetail.colGender'), genderLabel ?? '—', !genderLabel],
+          [t('groupDetail.colType'), paxLabel
+            ? <span className="badge badge-blue">{paxLabel}</span>
+            : '—', !paxLabel],
+        ];
+
+        const documentRows: [string, React.ReactNode, boolean?][] = [
+          [t('groupDetail.colPassport'), infoMember.passport
+            ? <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary)', background: 'var(--surface-2)', padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>{infoMember.passport}</span>
+            : '—', !infoMember.passport],
+          [t('groupDetail.colDateOfExpiry'), infoMember.date_of_expiry ? new Date(infoMember.date_of_expiry).toLocaleDateString() : '—', !infoMember.date_of_expiry],
+        ];
+
+        const auditRows: [string, React.ReactNode, boolean?][] = [
+          [t('groupDetail.colCreatedBy'), infoMember.creator?.full_name ?? '—', !infoMember.creator],
+          [t('groupDetail.colCreatedAt'), new Date(infoMember.created_at).toLocaleString()],
+          ...(infoMember.is_deleted ? ([
+            [t('groupDetail.colDeletedBy'), infoMember.deleter?.full_name ?? '—', !infoMember.deleter],
+            [t('groupDetail.colDeletedAt'), new Date(infoMember.updated_at).toLocaleString()],
+          ] as [string, React.ReactNode, boolean?][]) : []),
+        ];
+
+        const renderRows = (rows: [string, React.ReactNode, boolean?][]) =>
+          rows.map(([label, value, muted]) => (
+            <div key={label} className="info-row">
+              <span className="info-row-label">{label}</span>
+              <span className={`info-row-value${muted ? ' muted' : ''}`}>{value}</span>
+            </div>
+          ));
+
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setInfoMember(null)}>
+            <div className="modal modal-lg">
+              <div className="modal-header">
+                <div className="modal-header-title">
+                  <div className="modal-header-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                    <Info size={18} strokeWidth={2} />
+                  </div>
+                  <h3>{t('groupDetail.info')}</h3>
                 </div>
-                <h3>{infoMember.first_name} {infoMember.last_name}</h3>
+                <button className="btn-ghost btn-icon" onClick={() => setInfoMember(null)}><X size={16} /></button>
               </div>
-              <button className="btn-ghost btn-icon" onClick={() => setInfoMember(null)}><X size={16} /></button>
-            </div>
-            <div className="modal-body">
-              {[
-                [t('groupDetail.colPassport'), infoMember.passport || '—'],
-                [t('groupDetail.colType'), infoMember.pax_type ? (PAX_TYPE_LABELS[infoMember.pax_type] ?? infoMember.pax_type) : '—'],
-                [t('groupDetail.colGender'), infoMember.gender || '—'],
-                [t('groupDetail.colNationality'), infoMember.nationality || '—'],
-                [t('groupDetail.colDateOfBirth'), infoMember.date_of_birth ? new Date(infoMember.date_of_birth).toLocaleDateString() : '—'],
-                [t('groupDetail.colDateOfExpiry'), infoMember.date_of_expiry ? new Date(infoMember.date_of_expiry).toLocaleDateString() : '—'],
-                [t('groupDetail.colComment'), infoMember.comment || '—'],
-                [t('groupDetail.colPayment'),
-                  infoMember.payment != null
-                    ? `${mainCurrency?.symbol ?? ''}${Number(infoMember.payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${mainCurrency?.code ?? ''}`
-                    : '—'
-                ],
-                ...(infoMember.currency && !infoMember.currency.is_main && infoMember.original_payment != null
-                  ? [[t('groupDetail.paidIn'), `${infoMember.currency.symbol}${Number(infoMember.original_payment).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${infoMember.currency.code}`]]
-                  : []
-                ),
-                ...(infoMember.currency && !infoMember.currency.is_main
-                  ? [[t('groupDetail.colRate'), `1 ${mainCurrency?.code ?? ''} = ${Number(infoMember.currency_rate).toLocaleString()} ${infoMember.currency.code}`]]
-                  : []
-                ),
-                [t('groupDetail.colCreatedBy'), infoMember.creator?.full_name ?? '—'],
-                [t('groupDetail.colCreatedAt'), new Date(infoMember.created_at).toLocaleString()],
-                ...(infoMember.is_deleted ? [
-                  [t('groupDetail.colDeletedBy'), infoMember.deleter?.full_name ?? '—'],
-                  [t('groupDetail.colDeletedAt'), new Date(infoMember.updated_at).toLocaleString()],
-                ] : []),
-              ].map(([label, value]) => (
-                <div key={label as string} className="info-row">
-                  <span className="info-row-label">{label}</span>
-                  <span className="info-row-value">{value}</span>
+
+              <div className="modal-body">
+                {/* Hero */}
+                <div className="member-info-hero">
+                  <div className="avatar">{initial}</div>
+                  <div className="meta">
+                    <div className="name">{infoMember.first_name} {infoMember.last_name}</div>
+                    <div className="badges">
+                      {paxLabel && <span className="badge badge-blue">{paxLabel}</span>}
+                      {genderLabel && <span className="badge badge-purple">{genderLabel}</span>}
+                      {infoMember.nationality && (
+                        <span className="badge badge-gray">
+                          <Globe size={10} />{infoMember.nationality}
+                        </span>
+                      )}
+                      {infoMember.is_deleted && (
+                        <span className="badge badge-red">
+                          <Trash2 size={10} />{t('groupDetail.deletedTab')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setInfoMember(null)}>{t('confirm.cancel')}</button>
+
+                {/* Personal */}
+                <div className="info-section">
+                  <div className="info-section-title">
+                    <span className="section-icon"><User size={12} /></span>
+                    {t('groupDetail.infoSectionPersonal')}
+                  </div>
+                  <div className="info-section-body">{renderRows(personalRows)}</div>
+                </div>
+
+                {/* Document */}
+                <div className="info-section">
+                  <div className="info-section-title">
+                    <span className="section-icon"><CreditCard size={12} /></span>
+                    {t('groupDetail.infoSectionDocument')}
+                  </div>
+                  <div className="info-section-body">{renderRows(documentRows)}</div>
+                </div>
+
+                {/* Payments */}
+                {authUser.user?.type !== 'user' && (
+                  <div className="info-section">
+                    <div className="info-section-title">
+                      <span className="section-icon"><DollarSign size={12} /></span>
+                      {t('groupDetail.infoSectionPayments')}
+                    </div>
+                    {hasAnyPayments ? (
+                      <div className="payment-summary">
+                        <div className="payment-summary-main">
+                          <span className="label">{t('groupDetail.paymentMainTotal')}</span>
+                          <span className="value">
+                            {mainTotalSymbol}{memberMainTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            <span className="code">{mainTotalCode}</span>
+                          </span>
+                        </div>
+                        {breakdown.length > 0 && (
+                          <>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                              {t('groupDetail.paymentBreakdown')}
+                            </div>
+                            <div className="payment-summary-breakdown">
+                              {breakdown.map(b => (
+                                <div key={b.code || 'unknown'} className="payment-summary-card">
+                                  <span className="code">{b.code}</span>
+                                  <span className="amount">
+                                    {b.symbol}{b.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="payment-summary-empty">{t('groupDetail.paymentNoPayments')}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {infoMember.comment && (
+                  <div className="info-section">
+                    <div className="info-section-title">
+                      <span className="section-icon"><MessageSquare size={12} /></span>
+                      {t('groupDetail.infoSectionNotes')}
+                    </div>
+                    <div className="info-section-body">
+                      <div className="info-row" style={{ borderBottom: 'none' }}>
+                        <span className="info-row-value wrap" style={{ width: '100%' }}>{infoMember.comment}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Audit */}
+                <div className="info-section">
+                  <div className="info-section-title">
+                    <span className="section-icon"><Calendar size={12} /></span>
+                    {t('groupDetail.infoSectionAudit')}
+                  </div>
+                  <div className="info-section-body">{renderRows(auditRows)}</div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button className="btn-secondary" onClick={() => setInfoMember(null)}>{t('groupDetail.close')}</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {confirmDeleteMember && (
         <ConfirmDialog

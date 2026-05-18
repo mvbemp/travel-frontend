@@ -21,7 +21,9 @@
     "passwordError": "Parol kamida 6 ta belgidan iborat bo'lishi kerak",
     "signingIn": "Kirish…",
     "signIn": "Kirish →",
-    "failed": "Kirish muvaffaqiyatsiz"
+    "failed": "Kirish muvaffaqiyatsiz",
+    "showPassword": "Parolni ko'rsatish",
+    "hidePassword": "Parolni yashirish"
   },
   "users": {
     "pageTitle": "Foydalanuvchilar",
@@ -244,7 +246,16 @@
     "colDeletedAt": "O'chirilgan vaqt",
     "colCreatedBy": "Kim qo'shdi",
     "colCreatedAt": "Qo'shilgan vaqt",
-    "colRate": "Kurs"
+    "colRate": "Kurs",
+    "infoSectionPersonal": "Shaxsiy ma'lumotlar",
+    "infoSectionDocument": "Hujjat",
+    "infoSectionPayments": "To'lovlar",
+    "infoSectionNotes": "Izohlar",
+    "infoSectionAudit": "Faollik",
+    "paymentMainTotal": "Asosiy valyutadagi jami",
+    "paymentBreakdown": "Valyutalar bo'yicha",
+    "paymentNoPayments": "Hozircha to'lovlar yo'q",
+    "close": "Yopish"
   },
   "member": {
     "firstName": "Ism *",
@@ -271,7 +282,12 @@
     "currency": "Valyuta",
     "payment": "To'lov",
     "cancel": "Bekor qilish",
-    "saving": "Saqlanmoqda…"
+    "saving": "Saqlanmoqda…",
+    "sectionIdentity": "Shaxs",
+    "sectionDocument": "Hujjat",
+    "sectionPayment": "Boshlang'ich to'lov",
+    "sectionNotes": "Izohlar",
+    "editPaymentHint": "Faqat shaxsiy ma'lumotlar. To'lov qo'shish, tahrirlash yoki o'chirish uchun quyidagi «To'lovlar» bo'limidan foydalaning."
   },
   "currencies": {
     "pageTitle": "Valyutalar",
@@ -361,6 +377,27 @@
     "failedDelete": "Xarajatni o'chirishda xatolik",
     "failedLoad": "Xarajatlarni yuklashda xatolik"
   },
+  "payments": {
+    "sectionTitle": "To'lovlar",
+    "add": "To'lov qo'shish",
+    "addTitle": "To'lov qo'shish",
+    "edit": "Tahrirlash",
+    "editTitle": "To'lovni tahrirlash",
+    "delete": "O'chirish",
+    "loading": "To'lovlar yuklanmoqda…",
+    "empty": "To'lovlar yo'q",
+    "added": "To'lov qo'shildi",
+    "updated": "To'lov yangilandi",
+    "deleted": "To'lov o'chirildi",
+    "failedAdd": "To'lov qo'shishda xatolik",
+    "failedUpdate": "To'lovni yangilashda xatolik",
+    "failedDelete": "To'lovni o'chirishda xatolik",
+    "confirmDeleteTitle": "To'lovni o'chirish",
+    "confirmDeleteMessage": "Ushbu to'lovni o'chirishni xohlaysizmi? Bu amalni bekor qilib bo'lmaydi.",
+    "mainCurrency": "Asosiy valyuta",
+    "rate": "Kurs",
+    "sameAsMain": "Asosiy valyuta bilan bir xil"
+  },
   "confirm": {
     "cancel": "Bekor qilish",
     "confirm": "Tasdiqlash"
@@ -369,5 +406,12 @@
     "uz": "UZ",
     "ru": "RU",
     "en": "EN"
+  },
+  "theme": {
+    "toggle": "Mavzuni almashtirish",
+    "light": "Yorug‘ mavzu",
+    "dark": "Qorong‘i mavzu",
+    "toLight": "Yorug‘ mavzuga o‘tish",
+    "toDark": "Qorong‘i mavzuga o‘tish"
   }
 }

@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
 import {
   Users, DollarSign, Receipt, Map, LogOut, Menu, X,
-  ChevronDown, Plane, Globe, UserCircle,
+  ChevronDown, Plane, Globe, UserCircle, Sun, Moon,
 } from 'lucide-react';
 
 const LANGS = [
@@ -37,6 +38,7 @@ export default function Layout() {
   const { logout, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -159,6 +161,19 @@ export default function Layout() {
           </div>
 
           <div className="topbar-right">
+            {/* Theme toggle */}
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label={t(theme === 'dark' ? 'theme.toLight' : 'theme.toDark')}
+              title={t(theme === 'dark' ? 'theme.toLight' : 'theme.toDark')}
+            >
+              <span className="theme-toggle-icon" key={theme}>
+                {theme === 'dark' ? <Sun size={16} strokeWidth={2.2} /> : <Moon size={16} strokeWidth={2.2} />}
+              </span>
+            </button>
+
             {/* Language dropdown */}
             <div className="lang-dropdown" ref={langRef}>
               <button

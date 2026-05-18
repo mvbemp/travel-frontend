@@ -21,7 +21,9 @@
     "passwordError": "Пароль должен содержать минимум 6 символов",
     "signingIn": "Вход…",
     "signIn": "Войти →",
-    "failed": "Ошибка входа"
+    "failed": "Ошибка входа",
+    "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль"
   },
   "users": {
     "pageTitle": "Пользователи",
@@ -244,7 +246,16 @@
     "colDeletedAt": "Дата удаления",
     "colCreatedBy": "Кто добавил",
     "colCreatedAt": "Дата добавления",
-    "colRate": "Курс"
+    "colRate": "Курс",
+    "infoSectionPersonal": "Личные данные",
+    "infoSectionDocument": "Документ",
+    "infoSectionPayments": "Оплаты",
+    "infoSectionNotes": "Заметки",
+    "infoSectionAudit": "Активность",
+    "paymentMainTotal": "Всего в основной валюте",
+    "paymentBreakdown": "По валютам",
+    "paymentNoPayments": "Оплат пока нет",
+    "close": "Закрыть"
   },
   "member": {
     "firstName": "Имя *",
@@ -271,7 +282,12 @@
     "currency": "Валюта",
     "payment": "Оплата",
     "cancel": "Отмена",
-    "saving": "Сохранение…"
+    "saving": "Сохранение…",
+    "sectionIdentity": "Личность",
+    "sectionDocument": "Документ",
+    "sectionPayment": "Начальная оплата",
+    "sectionNotes": "Заметки",
+    "editPaymentHint": "Только личные данные. Используйте раздел «Оплаты» ниже, чтобы добавить, изменить или удалить оплату."
   },
   "currencies": {
     "pageTitle": "Валюты",
@@ -361,6 +377,27 @@
     "failedDelete": "Ошибка удаления расхода",
     "failedLoad": "Ошибка загрузки расходов"
   },
+  "payments": {
+    "sectionTitle": "Платежи",
+    "add": "Добавить платёж",
+    "addTitle": "Добавить платёж",
+    "edit": "Изменить",
+    "editTitle": "Изменить платёж",
+    "delete": "Удалить",
+    "loading": "Загрузка платежей…",
+    "empty": "Платежей нет",
+    "added": "Платёж добавлен",
+    "updated": "Платёж обновлён",
+    "deleted": "Платёж удалён",
+    "failedAdd": "Ошибка добавления платежа",
+    "failedUpdate": "Ошибка обновления платежа",
+    "failedDelete": "Ошибка удаления платежа",
+    "confirmDeleteTitle": "Удалить платёж",
+    "confirmDeleteMessage": "Удалить этот платёж? Это действие нельзя отменить.",
+    "mainCurrency": "Основная валюта",
+    "rate": "Курс",
+    "sameAsMain": "Совпадает с основной валютой"
+  },
   "confirm": {
     "cancel": "Отмена",
     "confirm": "Подтвердить"
@@ -369,5 +406,12 @@
     "uz": "UZ",
     "ru": "RU",
     "en": "EN"
+  },
+  "theme": {
+    "toggle": "Переключить тему",
+    "light": "Светлая тема",
+    "dark": "Тёмная тема",
+    "toLight": "Переключить на светлую тему",
+    "toDark": "Переключить на тёмную тему"
   }
 }
